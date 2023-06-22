@@ -16,7 +16,7 @@ if (window) {
     //     var Html5QrcodeScanType = window.__Html5QrcodeLibrary__.Html5QrcodeScanType;
     // }
 
-    if(!EkycCapture) {
-        var EkycCapture = window.__EkycToolsLibrary__.EkycCapture;
+    if(!EkycTools) {
+        var EkycTools = window.__EkycToolsLibrary__.EkycTools;
     }
 }

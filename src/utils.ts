@@ -22,6 +22,8 @@ export class Utils {
                     return 'front';
                 } else if (hasBackCamera) {
                     return 'back';
+                } else {
+                    return 'front';
                 }
             } catch (err) { console.error(err) }
         }

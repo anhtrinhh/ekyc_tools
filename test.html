@@ -5,13 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <script src="./dist/ekyc-tools.min.js"></script>
+    <style>
+        h1 {
+           margin: 0;
+        }
+    </style>
 </head>
 <body>
     <button onclick="handleOpenEkycCapture()">Open capture</button>
     <script>
-        function handleOpenEkycCapture() {
-            var capture = new EkycCapture();
-            capture.open();
+        async function handleOpenEkycCapture() {
+            var tools = new EkycTools();
+            var capture = await tools.getVideo();
+            console.log('capture is: ' + capture);
         }
     </script>
 </body>

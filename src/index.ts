@@ -6,11 +6,6 @@
  *
  */
 
-export { 
-    CameraCapabilities,
-    CameraDevice
-} from "./camera/core";
-
 export {
-    EkycCapture
-} from "./ekyc-capture"
+    EkycTools
+} from "./ekyc-tools"

@@ -12,11 +12,14 @@
     </style>
 </head>
 <body>
+    <p>
+        <img style="width: 450px;" id="img-id">
+    </p>
     <button onclick="handleOpenEkycCapture()">Open capture</button>
     <script>
         async function handleOpenEkycCapture() {
             var tools = new EkycTools();
-            var capture = await tools.getVideo();
+            var capture = await tools.getImage();
             console.log('capture is: ' + capture);
         }
     </script>

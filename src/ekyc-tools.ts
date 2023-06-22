@@ -12,6 +12,7 @@ export class EkycTools {
     private mediaStream!: MediaStream;
     private shardBorderSmallSize = 5;
     private shardBorderLargeSize = 40;
+    private foreverScanTimeout: any;
 
     public getImage(options: EkycToolOptions = {
         enableCapture: true,
@@ -47,13 +48,47 @@ export class EkycTools {
         })
     }
 
-    private foreverScan(captureRegionEl: HTMLVideoElement) {
-        const videoElement = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
-        const widthRatio = videoElement.videoWidth / videoElement.clientWidth;
-        const heightRatio = videoElement.videoHeight / videoElement.clientHeight;
-        console.log(videoElement.videoWidth, videoElement.clientWidth)
-        console.log(videoElement.videoHeight, videoElement.clientHeight)
-        console.log(widthRatio, heightRatio);
+    private foreverScan(captureRegionEl: HTMLDivElement) {
+        const shadingEl = captureRegionEl.querySelector('.ekyct-shading');
+        const videoEl = captureRegionEl.querySelector('.ekyct-video');
+        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
+        if (shadingEl && videoEl && canvasEl) {
+            const videoElement = videoEl as HTMLVideoElement;
+            const shadingElement = shadingEl as HTMLDivElement;
+            const canvasElement = canvasEl as HTMLCanvasElement;
+            const widthRatio = videoElement.videoWidth / videoElement.clientWidth;
+            const heightRatio = videoElement.videoHeight / videoElement.clientHeight;
+            const borderX = parseInt(shadingElement.style.borderLeftWidth.slice(0, -2));
+            const borderY = parseInt(shadingElement.style.borderTopWidth.slice(0, -2));
+            const qrRegionWidth = videoElement.clientWidth - borderX * 2;
+            const qrRegionHeight = videoElement.clientHeight - borderY * 2;
+            const sWidthOffset = qrRegionWidth * widthRatio;
+            const sHeightOffset = qrRegionHeight * heightRatio;
+            const sxOffset = borderX * widthRatio;
+            const syOffset = borderY * heightRatio;
+            const contextAttributes: any = { willReadFrequently: true };
+            const context: CanvasRenderingContext2D = (<any>canvasElement).getContext("2d", contextAttributes)!;
+            context.canvas.width = qrRegionWidth;
+            context.canvas.height = qrRegionHeight;
+            context.drawImage(videoElement, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, qrRegionWidth, qrRegionHeight);
+            let imageEl = document.getElementById('img-id') as HTMLImageElement;
+            imageEl.src = canvasElement.toDataURL();
+        }
+        const triggerNextScan = () => {
+            this.foreverScanTimeout = setTimeout(() => {
+                this.foreverScan(captureRegionEl);
+            }, 100);
+        };
+        this.scanContext().then(() => {
+            triggerNextScan();
+        }).catch((error) => {
+            console.error("Error happend while scanning context", error);
+            triggerNextScan();
+        });
+    }
+
+    private scanContext(): Promise<boolean> {
+        return new Promise(resolve => resolve(true));
     }
 
     private createBasicLayout(options: EkycToolOptions) {
@@ -72,10 +107,10 @@ export class EkycTools {
                 footer.querySelector('.ekyct-switchcam-btn')?.remove();
             }
             if (facingMode) {
-                this.insertVideoElOrNotHasCamEl(captureRegion, facingMode).then(() => {
+                this.insertVideoElement(captureRegion, facingMode).then(() => {
                     this.insertShadingElement(captureRegion, options.ratio!);
                     this.insertCanvasElement(captureRegion);
-                    console.log(captureRegion.querySelector('.ekyct-shading'));
+                    this.foreverScan(captureRegion);
                 });
             } else {
                 if (options.enableCapture) footer.querySelector('.ekyct-capture-btn')?.remove();
@@ -162,8 +197,16 @@ export class EkycTools {
             borderX = (videoWidth - width) / 2;
         }
         borderY = (videoHeight - height) / 2;
-        if (borderX < this.shardBorderSmallSize) borderX = this.shardBorderSmallSize;
-        if (borderY < this.shardBorderSmallSize) borderY = this.shardBorderSmallSize;
+        if (borderX < this.shardBorderSmallSize) {
+            borderX = this.shardBorderSmallSize;
+            width = videoWidth - borderX * 2;
+            borderY = (videoHeight - (width * rate)) / 2;
+        }
+        if (borderY < this.shardBorderSmallSize) {
+            borderY = this.shardBorderSmallSize;
+            height = videoHeight - borderY * 2;
+            borderX = (videoWidth - (height / rate)) / 2;
+        }
         return {
             borderX,
             borderY
@@ -241,7 +284,7 @@ export class EkycTools {
         }
     }
 
-    private async insertVideoElOrNotHasCamEl(parentEl: HTMLDivElement, currentFacingMode?: string, facingMode = 'environment') {
+    private async insertVideoElement(parentEl: HTMLDivElement, currentFacingMode?: string, facingMode = 'environment') {
         if (currentFacingMode) {
             currentFacingMode = currentFacingMode == facingMode || currentFacingMode == 'both' ? facingMode : currentFacingMode;
             const videoEl = await this.createVideoElement({ facingMode: currentFacingMode });
@@ -260,6 +303,9 @@ export class EkycTools {
                 this.mediaStream.removeTrack(track);
                 track.stop();
             });
+        }
+        if (this.foreverScanTimeout) {
+            clearTimeout(this.foreverScanTimeout);
         }
         document.body.removeChild(container);
     }

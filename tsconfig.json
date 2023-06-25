@@ -20,7 +20,8 @@
         "preserveConstEnums": true,
         "noImplicitAny": true,
         // Allow javascript source to be built
-        "allowJs": true
+        "allowJs": true,
+        "skipLibCheck": true
     },
     "files": [
         "src/index.ts"

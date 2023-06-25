@@ -17,6 +17,10 @@ export const EkycStyleHTML = `<style>
 .ekyct-btn:active {
     background-color: #5a5f63
 }
+.ekyct-btn:disabled {
+    background-color: #2b2d30;
+    color: #727275;
+}
 .ekyct-btn svg {
     fill: currentColor;
     width: 24px;

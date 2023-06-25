@@ -34,5 +34,10 @@
     "typings": "^2.1.1",
     "webpack": "^5.87.0",
     "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@mediapipe/face_detection": "^0.4.1646425229",
+    "@tensorflow-models/face-detection": "^1.0.2",
+    "@tensorflow/tfjs": "^4.8.0"
   }
 }

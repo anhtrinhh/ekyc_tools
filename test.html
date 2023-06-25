@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +8,11 @@
     <script src="./dist/ekyc-tools.min.js"></script>
     <style>
         h1 {
-           margin: 0;
+            margin: 0;
         }
     </style>
 </head>
+
 <body>
     <p>
         <img style="width: 450px;" id="img-id">
@@ -19,9 +21,17 @@
     <script>
         async function handleOpenEkycCapture() {
             var tools = new EkycTools();
-            var capture = await tools.getImage();
-            console.log('capture is: ' + capture);
+            var capture = await tools.getVideo();
+            // if (capture) {
+            //     const img = document.getElementById('img-id');
+            //     const url = URL.createObjectURL(capture);
+            //     img.src = url;
+            //     img.onload = () => {
+            //         URL.revokeObjectURL(url);
+            //     };
+            // }
         }
     </script>
 </body>
+
 </html>

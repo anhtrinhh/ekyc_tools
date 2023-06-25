@@ -1,4 +1,5 @@
 import { EkycCamErrorSVG, EkycCaptureBtnSVG, EkycCloseBtnSVG, EkycFileBtnSVG, EkycRecordBtnSVG, EkycStyleHTML, EkycSwitchCamSVG } from './ekyc-asset';
+import { Utils } from './utils';
 import '@mediapipe/face_detection';
 import '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
@@ -19,8 +20,6 @@ type ScanCallback = (scanWrapperEl: HTMLDivElement) => Promise<boolean>;
 
 export class EkycTools {
     private mediaStream: (MediaStream | null) = null;
-    private shardBorderSmallSize = 5;
-    private shardBorderLargeSize = 40;
     private foreverScanTimeout: any;
     private currentFacingMode: string = 'environment';
     private latestBlob: (Blob | null) = null;
@@ -39,7 +38,7 @@ export class EkycTools {
         facingMode: 'environment'
     }): Promise<Blob | null> {
         return new Promise((resolve) => {
-            const container = this.createBasicLayout(options, this.handleDetectFace.bind(this));
+            const container = this.createBasicLayout(options, this.handleDetectObject.bind(this));
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
                 evt.preventDefault();
                 this.closeEkycWindow(container);
@@ -109,20 +108,28 @@ export class EkycTools {
         });
     }
 
+    private async handleDetectObject(captureRegionEl: HTMLDivElement) {
+        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
+        if (canvasEl) {
+            return true;
+        }
+        return false;
+    }
+
     private async handleDetectFace(captureRegionEl: HTMLDivElement) {
         if (this.faceDetector) {
             const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
             if (canvasEl) {
                 const canvasElement = canvasEl as HTMLCanvasElement;
                 const faces = await this.faceDetector.estimateFaces(canvasElement);
-                if(faces.length === 1) {
+                if (faces.length === 1) {
                     const face = faces[0];
                     const width = face.box.width;
                     const height = face.box.height;
                     const eyeKeypoints = face.keypoints.filter(kp => kp.name == 'rightEye' || kp.name == 'leftEye');
                     let rs = true;
                     eyeKeypoints.forEach(kp => {
-                        if(kp.x >= width || kp.x <= 20
+                        if (kp.x >= width || kp.x <= 20
                             || kp.y >= (height / 2) || kp.y <= 20) {
                             rs = false;
                         }
@@ -178,15 +185,20 @@ export class EkycTools {
     private createBasicLayout(options: EkycToolOptions, scanCallback: ScanCallback) {
         this.validateEkycToolOptions(options);
         const container = document.createElement('div');
-        container.insertAdjacentHTML('beforeend', EkycStyleHTML);
+        const containerInner = document.createElement('div');
+        containerInner.className = 'ekyct-container--inner';
+        containerInner.insertAdjacentHTML('beforeend', EkycStyleHTML);
         container.className = 'ekyct-container';
         const captureRegion = document.createElement('div');
+        captureRegion.dataset['ratio'] = options.ratio?.toString();
         captureRegion.className = "ekyct-capture-region";
         const footer = this.createFooter(options);
-        container.appendChild(this.createHeader());
-        container.appendChild(captureRegion);
-        container.appendChild(footer);
+        containerInner.appendChild(this.createHeader());
+        containerInner.appendChild(captureRegion);
+        containerInner.appendChild(footer);
+        container.appendChild(containerInner);
         this.getFacingMode().then(facingMode => {
+            console.log('facing mode is: ' + facingMode);
             if (options.enableSwitchCamera && facingMode == 'both') {
                 footer.querySelector('.ekyct-switchcam-btn')?.addEventListener('click', evt => {
                     evt.preventDefault();
@@ -203,8 +215,7 @@ export class EkycTools {
             }
             if (facingMode) {
                 this.insertVideoElement(captureRegion, facingMode, options.facingMode).then(() => {
-                    this.insertShadingElement(captureRegion, options.ratio!);
-                    this.insertCanvasElement(captureRegion);
+                    Utils.handleScreen(containerInner);
                     this.foreverScan(captureRegion, scanCallback);
                     this.enableFooterButtons(footer);
                 });
@@ -214,10 +225,8 @@ export class EkycTools {
                 captureRegion.appendChild(this.createNotHasCamElement());
             }
         });
-        window.addEventListener('resize', () => {
-            this.insertShadingElement(captureRegion, options.ratio!);
-            this.insertCanvasElement(captureRegion);
-        })
+        // screen.orientation.addEventListener('change', this.handleOrientationChange);
+        //window.addEventListener('orientationchange', this.handleOrientationChange);
         return container;
     }
 
@@ -274,141 +283,25 @@ export class EkycTools {
         return el;
     }
 
-    private insertShadingElement(parent: HTMLDivElement, rate: number) {
-        const videoEl = parent.querySelector('.ekyct-video') as HTMLVideoElement;
-        if (videoEl) {
-            parent.querySelector('.ekyct-shading')?.remove();
-            const videoWidth = videoEl.clientWidth;
-            const videoHeight = videoEl.clientHeight;
-            const shadingElement = document.createElement("div");
-            shadingElement.className = 'ekyct-shading';
-            shadingElement.style.width = `${videoWidth}px`;
-            shadingElement.style.height = `${videoHeight}px`;
-            const left = (parent.clientWidth - videoWidth) / 2 + 'px';
-            const top = (parent.clientHeight - videoHeight) / 2 + 'px'
-            shadingElement.style.top = top;
-            shadingElement.style.left = left;
-            const borderSize = this.getShadingBorderSize(videoEl, rate);
-            shadingElement.style.borderLeftWidth = `${borderSize.borderX}px`;
-            shadingElement.style.borderRightWidth = `${borderSize.borderX}px`;
-            shadingElement.style.borderTopWidth = `${borderSize.borderY}px`;
-            shadingElement.style.borderBottomWidth = `${borderSize.borderY}px`;
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, false);
-            parent.appendChild(shadingElement);
-        }
-    }
-
-    private getShadingBorderSize(videoEl: HTMLVideoElement, rate: number) {
-        let videoWidth = videoEl.clientWidth;
-        let videoHeight = videoEl.clientHeight;
-        let borderX: number, borderY: number;
-        if (videoWidth < 576) {
-            borderX = 20;
-        } else if (videoWidth < 768) {
-            borderX = 40;
-        } else {
-            borderX = 60;
-        }
-        let width = videoWidth - 2 * borderX;
-        let height = width * rate;
-        if (height > videoHeight) {
-            height = videoHeight;
-            width = height / rate;
-            borderX = (videoWidth - width) / 2;
-        }
-        borderY = (videoHeight - height) / 2;
-        if (borderX < this.shardBorderSmallSize) {
-            borderX = this.shardBorderSmallSize;
-            width = videoWidth - borderX * 2;
-            borderY = (videoHeight - (width * rate)) / 2;
-        }
-        if (borderY < this.shardBorderSmallSize) {
-            borderY = this.shardBorderSmallSize;
-            height = videoHeight - borderY * 2;
-            borderX = (videoWidth - (height / rate)) / 2;
-        }
-        return {
-            borderX,
-            borderY
-        };
-    }
-
-    private insertShaderBorders(
-        shaderElem: HTMLDivElement,
-        width: number,
-        height: number,
-        top: number | null,
-        bottom: number | null,
-        side: number,
-        isLeft: boolean) {
-        const elem = document.createElement("div");
-        elem.className = 'ekyct-shader-border';
-        elem.style.width = `${width}px`;
-        elem.style.height = `${height}px`;
-        if (top !== null) {
-            elem.style.top = `${top}px`;
-        }
-        if (bottom !== null) {
-            elem.style.bottom = `${bottom}px`;
-        }
-        if (isLeft) {
-            elem.style.left = `${side}px`;
-        } else {
-            elem.style.right = `${side}px`;
-        }
-        shaderElem.appendChild(elem);
-    }
-
-    private insertCanvasElement(parent: HTMLDivElement) {
-        const shadingEl = parent.querySelector('.ekyct-shading');
-        const videoEl = parent.querySelector('.ekyct-video');
-        if (videoEl && shadingEl) {
-            parent.querySelector('.ekyct-canvas')?.remove();
-            const shadingDivEl = shadingEl as HTMLDivElement;
-            const width = videoEl.clientWidth - parseInt(shadingDivEl.style.borderLeftWidth.slice(0, -2)) * 2;
-            const height = videoEl.clientHeight - parseInt(shadingDivEl.style.borderTopWidth.slice(0, -2)) * 2;
-            const canvasElement = document.createElement('canvas');
-            canvasElement.className = 'ekyct-canvas';
-            canvasElement.style.width = `${width}px`;
-            canvasElement.style.height = `${height}px`;
-            canvasElement.style.display = "none";
-            parent.appendChild(canvasElement);
-        }
-    }
-
     private async getFacingMode() {
         try {
             let devices = await navigator.mediaDevices.enumerateDevices();
+            console.log(devices)
             let cameras = devices.filter(function (device) {
-                return device.kind == 'videoinput' && device.label;
+                return device.kind == 'videoinput';
             });
+            if (cameras.length > 1) {
+                return 'both';
+            }
             if (cameras.length > 0) {
-                let hasFrontCamera = cameras.some(function (camera) {
-                    return camera.label.toLowerCase().includes('front') || camera.label.toLowerCase().includes('selfie');
-                });
-                let hasBackCamera = cameras.some(function (camera) {
-                    return camera.label.toLowerCase().includes('back') || camera.label.toLowerCase().includes('rear');
-                });
-                if (hasFrontCamera && hasBackCamera) {
-                    return 'both';
-                } else if (hasBackCamera) {
-                    return 'environment';
-                } else {
-                    return 'user';
-                }
+                return 'user';
             }
             return null;
         } catch (err) {
             console.error(err);
             return null;
         }
+        //return 'both';
     }
 
     private async insertVideoElement(parentEl: HTMLDivElement, currentFacingMode?: string, facingMode = 'environment') {
@@ -501,8 +394,6 @@ export class EkycTools {
         return new Promise(resolve => {
             const videoElement = document.createElement("video");
             videoElement.className = 'ekyct-video';
-            videoElement.style.width = '100%';
-            videoElement.style.display = "block";
             videoElement.muted = true;
             videoElement.setAttribute("muted", "true");
             (<any>videoElement).playsInline = true;

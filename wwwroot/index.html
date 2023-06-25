@@ -17,19 +17,19 @@
     <p>
         <img style="width: 450px;" id="img-id">
     </p>
-    <button onclick="handleOpenEkycCapture()">Open capture</button>
+    <button onclick="handleOpenEkycCapture()">Open camera</button>
     <script>
         async function handleOpenEkycCapture() {
             var tools = new EkycTools();
-            var capture = await tools.getVideo();
-            // if (capture) {
-            //     const img = document.getElementById('img-id');
-            //     const url = URL.createObjectURL(capture);
-            //     img.src = url;
-            //     img.onload = () => {
-            //         URL.revokeObjectURL(url);
-            //     };
-            // }
+            var capture = await tools.getImage();
+            if (capture) {
+                const img = document.getElementById('img-id');
+                const url = URL.createObjectURL(capture);
+                img.src = url;
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                };
+            }
         }
     </script>
 </body>

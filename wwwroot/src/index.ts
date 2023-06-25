@@ -5,6 +5,13 @@
  * - Scan and record face
  *
  */
+import { Utils } from './utils';
+
+window.addEventListener('resize', () => {
+    document.querySelectorAll('div.ekyct-container--inner').forEach(elm => {
+        Utils.handleScreen(elm);
+    });
+})
 
 export {
     EkycTools

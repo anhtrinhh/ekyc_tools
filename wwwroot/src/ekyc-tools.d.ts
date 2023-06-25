@@ -11,8 +11,6 @@ export interface EkycToolOptions {
 }
 export declare class EkycTools {
     private mediaStream;
-    private shardBorderSmallSize;
-    private shardBorderLargeSize;
     private foreverScanTimeout;
     private currentFacingMode;
     private latestBlob;
@@ -23,6 +21,7 @@ export declare class EkycTools {
     getVideo(options?: EkycToolOptions): Promise<Blob | null>;
     private handleFilePicker;
     private handleCapture;
+    private handleDetectObject;
     private handleDetectFace;
     private foreverScan;
     private createBasicLayout;
@@ -31,10 +30,6 @@ export declare class EkycTools {
     private toggleFacingMode;
     private validateEkycToolOptions;
     private createNotHasCamElement;
-    private insertShadingElement;
-    private getShadingBorderSize;
-    private insertShaderBorders;
-    private insertCanvasElement;
     private getFacingMode;
     private insertVideoElement;
     private closeEkycWindow;

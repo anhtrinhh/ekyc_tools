@@ -1,12 +1,24 @@
 export const EkycStyleHTML = `<style>
 .ekyct-container, .ekyct-container * {margin: 0;padding:0;box-sizing: border-box}
-.ekyct-container{position:fixed;top:0;left:0;bottom:0;right:0;background-color: #202124;z-index:99; display: flex; flex-direction: column;min-height: 100vh}
+.ekyct-container{position:fixed;top:0;left:0;background-color: #202124;z-index:99;height:100%;width:100%}
+.ekyct-container--inner {display: flex; flex-direction:column;width:100%;height:100%;position:absolute;top:0;left:0}
+.ekyct-container--rotate {flex-direction: row;}
+.ekyct-container--rotate .ekyct-header, .ekyct-container--rotate .ekyct-footer {
+    width: unset;
+    height: 100%;
+}
+.ekyct-container--rotate .ekyct-header--inner, .ekyct-container--rotate .ekyct-footer--inner {
+    width: unset;
+    height: 100%;
+    flex-direction: column-reverse;
+}
+
 .ekyct-btn {
     border: none;
     outline: none;
     background-color: #3c4043;
     color: #ffffff;
-    padding: 10px;
+    padding: 16px;
     cursor: pointer;
     line-height: 0;
     border-radius: 50%
@@ -23,8 +35,8 @@ export const EkycStyleHTML = `<style>
 }
 .ekyct-btn svg {
     fill: currentColor;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
 }
 .ekyct-capture-region {
     width: 100%;
@@ -46,12 +58,12 @@ export const EkycStyleHTML = `<style>
     padding: 10px;
 }
 
-.ekyct-header--inner .ekyct-btn { padding: 5px; }
+.ekyct-header--inner .ekyct-btn { padding: 6px; }
 
 .ekyct-footer--inner {
     width: 100%;
     display: flex;
-    padding: 10px;
+    padding: 20px;
     justify-content: center;
     gap: 1rem;
 }
@@ -85,7 +97,7 @@ export const EkycStyleHTML = `<style>
 .ekyct-shading {
     position: absolute;
     border-style: solid;
-    border-color: rgba(0, 0, 0, 0.48);
+    border-color: rgba(0, 0, 0, 0.5);
 }
 
 .ekyct-shader-border {
@@ -93,14 +105,30 @@ export const EkycStyleHTML = `<style>
     background-color: #ffffff;
 }
 
+.ekyct-video {
+    width: 100%;
+    display: block;
+}
+
+.ekyct-container--rotate .ekyct-video {
+    width: unset;
+    height: 100%;
+} 
+
+/* .ekyct-container--rotate .ekyct-video {
+    max-width: calc(100vw - 360px)
+} */
+
 @media (min-width: 768px) {
-    .ekyct-video {
-        max-width: 576px
+    .ekyct-container--inner {
+        max-width: 576px;
+        left: 50%;
+        transform: translateX(-50%)
     }
 }
 
 @media (min-width: 992px) {
-    .ekyct-video {
+    .ekyct-container--inner {
         max-width: 768px;
     }
 }

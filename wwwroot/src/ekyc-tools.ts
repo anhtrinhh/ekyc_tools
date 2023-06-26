@@ -1,10 +1,6 @@
 import { EkycCamErrorSVG, EkycCaptureBtnSVG, EkycCloseBtnSVG, EkycFileBtnSVG, EkycRecordBtnSVG, EkycStyleHTML, EkycSwitchCamSVG } from './ekyc-asset';
 import { Utils } from './utils';
-import '@mediapipe/face_detection';
-import '@tensorflow/tfjs-core';
-import '@tensorflow/tfjs-backend-webgl';
-import * as faceDetection from '@tensorflow-models/face-detection';
-import { FaceDetector, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
+import { createDetector, SupportedModels, FaceDetector, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
 
 export interface EkycToolOptions {
     ratio?: number,
@@ -23,18 +19,25 @@ export class EkycTools {
     private currentFacingMode: string = 'environment';
     private readonly hasCheckIDCard: boolean = false;
     private faceDetector: (FaceDetector | null) = null;
-
-    public constructor(idCardModelUrl?: string) {
-        if (idCardModelUrl) this.hasCheckIDCard = true;
-    }
-
-    public getImage(options: EkycToolOptions = {
+    private readonly defaultGetImageOptions: EkycToolOptions = {
         enableCapture: true,
         enableFilePicker: true,
         enableSwitchCamera: true,
         ratio: 0.6,
         facingMode: 'environment'
-    }): Promise<Blob | null> {
+    };
+    private readonly defaultGetVideoOptions: EkycToolOptions = {
+        enableRecord: true,
+        enableSwitchCamera: true,
+        facingMode: 'user'
+    };
+
+    public constructor(idCardModelUrl?: string) {
+        if (idCardModelUrl) this.hasCheckIDCard = true;
+    }
+
+    public getImage(options: EkycToolOptions = {}): Promise<Blob | null> {
+        options = { ...this.defaultGetImageOptions, ...options };
         return new Promise((resolve) => {
             const container = this.createBasicLayout(options);
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
@@ -60,18 +63,15 @@ export class EkycTools {
         })
     }
 
-    public getVideo(recordMs = 3000, options: EkycToolOptions = {
-        enableRecord: true,
-        enableSwitchCamera: true,
-        facingMode: 'user'
-    }): Promise<Blob | null> {
+    public getVideo(recordMs = 3000, options: EkycToolOptions = {}): Promise<Blob | null> {
+        options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise((resolve) => {
-            const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
+            const model = SupportedModels.MediaPipeFaceDetector;
             const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
                 runtime: 'mediapipe',
                 solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
             };
-            faceDetection.createDetector(model, detectorConfig).then(detector => {
+            createDetector(model, detectorConfig).then(detector => {
                 this.faceDetector = detector;
             });
             const container = this.createBasicLayout(options);
@@ -155,7 +155,10 @@ export class EkycTools {
                                         recorder = undefined;
                                     }
                                     await Utils.delay(10);
-                                    // console.log(percent)
+                                    captureRegionEl.querySelectorAll('.ekyct-circle-region-point').forEach((elm, ix) => {
+                                        if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
+                                        else elm.classList.remove('ekyct-circle-region-point--marked')
+                                    });
                                 } catch (err) {
                                     console.error(err);
                                     break;
@@ -163,6 +166,7 @@ export class EkycTools {
                                 if (recordMs <= duration) {
                                     await this.stopMediaRecorder(recorder);
                                     this.clearMediaStream(stream);
+                                    await Utils.delay(250);
                                     break;
                                 }
                             }
@@ -232,17 +236,17 @@ export class EkycTools {
                 const canvasElement = canvasEl as HTMLCanvasElement;
                 const faces = await this.faceDetector.estimateFaces(canvasElement);
                 if (faces.length === 1) {
-                    const face = faces[0];
-                    const width = face.box.width;
-                    const height = face.box.height;
-                    const eyeKeypoints = face.keypoints.filter(kp => kp.name == 'rightEye' || kp.name == 'leftEye');
+                    // const face = faces[0];
+                    // const width = face.box.width;
+                    // const height = face.box.height;
+                    // const eyeKeypoints = face.keypoints.filter(kp => kp.name == 'rightEye' || kp.name == 'leftEye');
                     let rs = true;
-                    eyeKeypoints.forEach(kp => {
-                        if (kp.x >= width || kp.x <= 20
-                            || kp.y >= (height / 2) || kp.y <= 20) {
-                            rs = false;
-                        }
-                    });
+                    // eyeKeypoints.forEach(kp => {
+                    //     if (kp.x >= width || kp.x <= 20
+                    //         || kp.y >= (height / 2) || kp.y <= 20) {
+                    //         rs = false;
+                    //     }
+                    // });
                     //console.log(face, rs);
                     return rs;
                 }
@@ -341,11 +345,15 @@ export class EkycTools {
     private enableFooterButtons(footer: HTMLDivElement) {
         const switchcamBtn = footer.querySelector('.ekyct-switchcam-btn');
         const captureBtn = footer.querySelector('.ekyct-capture-btn');
+        const recordBtn = footer.querySelector('.ekyct-record-btn');
         if (switchcamBtn) {
             (switchcamBtn as HTMLButtonElement).disabled = false;
         }
         if (!this.hasCheckIDCard && captureBtn) {
             (captureBtn as HTMLButtonElement).disabled = false;
+        }
+        if (recordBtn) {
+            (recordBtn as HTMLButtonElement).disabled = false;
         }
     }
 

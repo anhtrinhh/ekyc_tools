@@ -49,8 +49,8 @@ export const EkycStyleHTML = `<style>
     justify-content: center;
 }
 
-.ekyct-hide-shader-border .ekyct-shader-border {
-    display: none
+.ekyct-hide-shader-border .ekyct-shading {
+    overflow: hidden;
 }
 
 .ekyct-circle-region {
@@ -62,16 +62,24 @@ export const EkycStyleHTML = `<style>
     width: 100%;
     height: 100%;
     justify-content: center;
-    align-items: center
+    align-items: center;
+    rotate: 180deg;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
 }
 
 .ekyct-circle-region-point {
-    width: 3px;
-    height: 15px;
-    background-color: #0007;
+    width: 4px;
+    height: 16px;
+    background-color: rgba(0,0,0,0.5);
     position: absolute;
-    border-radius: 3px;
-    transform: rotate(calc(var(--i)*7.2deg)) translateY(-160px);
+    border-radius: 4px;
+    transition: all 0.01s ease-in-out;
+}
+
+.ekyct-circle-region-point--marked {
+    background-color: #0f0;
+    box-shadow: 0 0 10px #0f0;
 }
 
 .ekyct-header, .ekyct-footer {
@@ -140,10 +148,6 @@ export const EkycStyleHTML = `<style>
     width: unset;
     height: 100%;
 } 
-
-/* .ekyct-container--rotate .ekyct-video {
-    max-width: calc(100vw - 360px)
-} */
 
 @media (min-width: 768px) {
     .ekyct-container--inner {

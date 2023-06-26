@@ -134,14 +134,17 @@ export class Utils {
         });
     }
 
-    private static insertCircleRegion(parentEl: Element) {
+    private static insertCircleRegion(parentEl: HTMLDivElement) {
         const circleRegion = document.createElement('div');
+        const parentWidth = parseFloat(parentEl.style.width.slice(0, -2));
+        const parentBorderXWidth = parseFloat(parentEl.style.borderLeftWidth.slice(0, -2));
+        const width = parentWidth - parentBorderXWidth * 2;
         circleRegion.className = 'ekyct-circle-region';
-        for(let i = 1; i <= 50; i++) {
+        for (let i = 0; i < 100; i++) {
             const pointEl = document.createElement('div');
             pointEl.className = 'ekyct-circle-region-point';
-            pointEl.setAttribute('style', `--i: ${i}`);
             circleRegion.appendChild(pointEl);
+            pointEl.style.transform = `rotate(${i * 3.6}deg) translateY(${width / 2 - 10}px)`;
         }
         parentEl.appendChild(circleRegion);
     }

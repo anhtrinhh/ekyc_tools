@@ -1,6 +1,3 @@
-import '@mediapipe/face_detection';
-import '@tensorflow/tfjs-core';
-import '@tensorflow/tfjs-backend-webgl';
 export interface EkycToolOptions {
     ratio?: number;
     enableFilePicker?: boolean;
@@ -15,6 +12,8 @@ export declare class EkycTools {
     private currentFacingMode;
     private readonly hasCheckIDCard;
     private faceDetector;
+    private readonly defaultGetImageOptions;
+    private readonly defaultGetVideoOptions;
     constructor(idCardModelUrl?: string);
     getImage(options?: EkycToolOptions): Promise<Blob | null>;
     getVideo(recordMs?: number, options?: EkycToolOptions): Promise<Blob | null>;

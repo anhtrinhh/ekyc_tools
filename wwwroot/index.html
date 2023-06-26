@@ -17,9 +17,28 @@
     <p>
         <img style="width: 450px;" id="img-id">
     </p>
-    <button onclick="handleOpenEkycCapture()">Open camera</button>
+    <p>
+        <video id="video-id"></video>
+    </p>
+    <button onclick="handleCapture()">Take photo</button>
+    <button onclick="handleRecord()">Take video</button>
     <script>
-        async function handleOpenEkycCapture() {
+        async function handleRecord() {
+            var tools = new EkycTools();
+            var videoBlob = await tools.getVideo();
+            if (videoBlob) {
+                const videoEl = document.getElementById('video-id');
+                const url = URL.createObjectURL(videoBlob);
+                videoEl.controls = true;
+                videoEl.muted = true;
+                videoEl.src = url;
+                videoEl.onload = () => {
+                    URL.revokeObjectURL(url);
+                };
+            }
+        }
+
+        async function handleCapture() {
             var tools = new EkycTools();
             var capture = await tools.getImage();
             if (capture) {

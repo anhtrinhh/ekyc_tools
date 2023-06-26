@@ -62,6 +62,7 @@ export class Utils {
             this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, true);
             this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, false);
             this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, false);
+            this.insertCircleRegion(shadingElement);
             parent.appendChild(shadingElement);
         }
     }
@@ -125,5 +126,23 @@ export class Utils {
             borderX,
             borderY
         };
+    }
+
+    public static delay(delayInMS: number) {
+        return new Promise((resolve) => {
+            setTimeout(resolve, delayInMS);
+        });
+    }
+
+    private static insertCircleRegion(parentEl: Element) {
+        const circleRegion = document.createElement('div');
+        circleRegion.className = 'ekyct-circle-region';
+        for(let i = 1; i <= 50; i++) {
+            const pointEl = document.createElement('div');
+            pointEl.className = 'ekyct-circle-region-point';
+            pointEl.setAttribute('style', `--i: ${i}`);
+            circleRegion.appendChild(pointEl);
+        }
+        parentEl.appendChild(circleRegion);
     }
 }

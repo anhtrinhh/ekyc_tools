@@ -48,6 +48,32 @@ export const EkycStyleHTML = `<style>
     align-items: center;
     justify-content: center;
 }
+
+.ekyct-hide-shader-border .ekyct-shader-border {
+    display: none
+}
+
+.ekyct-circle-region {
+    display: none;
+}
+
+.ekyct-hide-shader-border .ekyct-circle-region {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center
+}
+
+.ekyct-circle-region-point {
+    width: 3px;
+    height: 15px;
+    background-color: #0007;
+    position: absolute;
+    border-radius: 3px;
+    transform: rotate(calc(var(--i)*7.2deg)) translateY(-160px);
+}
+
 .ekyct-header, .ekyct-footer {
     width: 100%;
 }

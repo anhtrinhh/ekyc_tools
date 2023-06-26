@@ -11,19 +11,21 @@ export interface EkycToolOptions {
 }
 export declare class EkycTools {
     private mediaStream;
-    private foreverScanTimeout;
+    private scanFaceRunning;
     private currentFacingMode;
-    private latestBlob;
     private readonly hasCheckIDCard;
     private faceDetector;
     constructor(idCardModelUrl?: string);
     getImage(options?: EkycToolOptions): Promise<Blob | null>;
-    getVideo(options?: EkycToolOptions): Promise<Blob | null>;
+    getVideo(recordMs?: number, options?: EkycToolOptions): Promise<Blob | null>;
     private handleFilePicker;
+    private handleRecord;
+    private stopMediaRecorder;
     private handleCapture;
-    private handleDetectObject;
+    private getObjectFromCaptureRegion;
+    private getBlobFromCanvas;
     private handleDetectFace;
-    private foreverScan;
+    private handleScan;
     private createBasicLayout;
     private enableFooterButtons;
     private disableFooterButtons;
@@ -34,7 +36,6 @@ export declare class EkycTools {
     private insertVideoElement;
     private closeEkycWindow;
     private clearMediaStream;
-    private clearScanTimeout;
     private createHeader;
     private createFooter;
     private createVideoElement;

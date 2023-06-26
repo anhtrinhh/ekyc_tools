@@ -16,13 +16,11 @@ export interface EkycToolOptions {
 }
 
 type OnBlob = (file: Blob) => void;
-type ScanCallback = (scanWrapperEl: HTMLDivElement) => Promise<boolean>;
 
 export class EkycTools {
     private mediaStream: (MediaStream | null) = null;
-    private foreverScanTimeout: any;
+    private scanFaceRunning: boolean = false;
     private currentFacingMode: string = 'environment';
-    private latestBlob: (Blob | null) = null;
     private readonly hasCheckIDCard: boolean = false;
     private faceDetector: (FaceDetector | null) = null;
 
@@ -38,7 +36,7 @@ export class EkycTools {
         facingMode: 'environment'
     }): Promise<Blob | null> {
         return new Promise((resolve) => {
-            const container = this.createBasicLayout(options, this.handleDetectObject.bind(this));
+            const container = this.createBasicLayout(options);
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
                 evt.preventDefault();
                 this.closeEkycWindow(container);
@@ -46,20 +44,23 @@ export class EkycTools {
             });
             if (options.enableFilePicker) {
                 this.handleFilePicker(container, 'image/png,image/jpeg', file => {
+                    this.closeEkycWindow(container);
                     resolve(file);
                 });
             }
             if (options.enableCapture) {
-                this.handleCapture(container, file => {
-                    this.closeEkycWindow(container);
-                    resolve(file)
-                });
+                this.handleCapture(container).then(blob => {
+                    if (blob) {
+                        this.closeEkycWindow(container);
+                        resolve(blob);
+                    }
+                })
             }
             document.body.appendChild(container);
         })
     }
 
-    public getVideo(options: EkycToolOptions = {
+    public getVideo(recordMs = 3000, options: EkycToolOptions = {
         enableRecord: true,
         enableSwitchCamera: true,
         facingMode: 'user'
@@ -68,18 +69,26 @@ export class EkycTools {
             const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
             const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
                 runtime: 'mediapipe',
-                solutionPath: '../node_modules/@mediapipe/face_detection'
+                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
             };
             faceDetection.createDetector(model, detectorConfig).then(detector => {
                 this.faceDetector = detector;
-                console.log(detector);
             });
-            const container = this.createBasicLayout(options, this.handleDetectFace.bind(this));
+            const container = this.createBasicLayout(options);
+            container.querySelector('.ekyct-capture-region')?.classList.add('ekyct-hide-shader-border');
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
                 evt.preventDefault();
                 this.closeEkycWindow(container);
                 resolve(null);
             });
+            if (options.enableRecord) {
+                this.handleRecord(recordMs, container).then(blob => {
+                    if (blob) {
+                        this.closeEkycWindow(container);
+                        resolve(blob);
+                    }
+                })
+            }
             document.body.appendChild(container);
         })
     }
@@ -99,21 +108,121 @@ export class EkycTools {
         });
     }
 
-    private handleCapture(container: HTMLDivElement, callback: OnBlob) {
-        container.querySelector('.ekyct-capture-btn')?.addEventListener('click', evt => {
-            evt.preventDefault();
-            if (this.latestBlob) {
-                callback(this.latestBlob)
+    private handleRecord(recordMs: number, container: HTMLDivElement): Promise<Blob | null> {
+        return new Promise((resolve, reject) => {
+            const recordButton = container.querySelector('.ekyct-record-btn');
+            if (recordButton) {
+                recordButton.addEventListener('click', async evt => {
+                    evt.preventDefault();
+                    this.disableFooterButtons(container.querySelector('.ekyct-footer') as HTMLDivElement);
+                    const captureRegionEl = container.querySelector('div.ekyct-capture-region');
+                    if (captureRegionEl) {
+                        let data: BlobPart[] = [];
+                        const captureRegion = captureRegionEl as HTMLDivElement;
+                        let percent = 0;
+                        let duration = 0;
+                        let start = 0;
+                        const canvasEl = captureRegion.querySelector('canvas.ekyct-canvas') as HTMLCanvasElement;
+                        if (canvasEl) {
+                            let stream = canvasEl.captureStream();
+                            let recorder: MediaRecorder | undefined;
+                            this.scanFaceRunning = true;
+                            while (this.scanFaceRunning) {
+                                try {
+                                    this.handleScan(captureRegion);
+                                    let rs = await this.handleDetectFace(captureRegion);
+                                    if (rs) {
+                                        if (!recorder) {
+                                            start = 0;
+                                            duration = 0;
+                                            percent = 0;
+                                            data = [];
+                                            recorder = new MediaRecorder(stream);
+                                            recorder.ondataavailable = event => data.push(event.data);
+                                            recorder.start();
+                                        }
+                                        let nowTimestamp = new Date().getTime();
+                                        if (start === 0) start = nowTimestamp;
+                                        duration = nowTimestamp - start;
+                                        let ratio = duration / recordMs;
+                                        percent = ratio >= 1 ? 100 : Math.floor(ratio * 100);
+                                    } else {
+                                        await this.stopMediaRecorder(recorder);
+                                        start = 0;
+                                        duration = 0;
+                                        percent = 0;
+                                        data = [];
+                                        recorder = undefined;
+                                    }
+                                    await Utils.delay(10);
+                                    // console.log(percent)
+                                } catch (err) {
+                                    console.error(err);
+                                    break;
+                                }
+                                if (recordMs <= duration) {
+                                    await this.stopMediaRecorder(recorder);
+                                    this.clearMediaStream(stream);
+                                    break;
+                                }
+                            }
+                            this.scanFaceRunning = false;
+                            if (data.length > 0) resolve(new Blob(data, { type: "video/webm" }))
+                            else resolve(null);
+                        } else reject('Canvas not exists!');
+                    } else reject('Capture region not exists!');
+                });
+            } else reject('Record button not exists!');
+        })
+    }
+
+    private async stopMediaRecorder(recorder?: MediaRecorder) {
+        if (recorder) {
+            if (recorder.state === "recording") {
+                let stopped = () => new Promise((res, rej) => {
+                    recorder!.onstop = res;
+                    recorder!.onerror = () => rej('An error occured!');
+                });
+                recorder.stop();
+                await stopped();
+            }
+        }
+    }
+
+    private handleCapture(container: HTMLDivElement): Promise<Blob | null> {
+        return new Promise((resolve, reject) => {
+            const captureButton = container.querySelector('.ekyct-capture-btn');
+            if (captureButton) {
+                captureButton.addEventListener('click', async evt => {
+                    evt.preventDefault();
+                    const captureRegionEl = container.querySelector('div.ekyct-capture-region');
+                    if (captureRegionEl) {
+                        const captureRegion = captureRegionEl as HTMLDivElement;
+                        this.handleScan(captureRegion);
+                        const rs = await this.getObjectFromCaptureRegion(captureRegion);
+                        resolve(rs);
+                    } else reject('Capture region not exists!');
+                });
+            } else {
+                reject('Capture button not exists!');
             }
         });
     }
 
-    private async handleDetectObject(captureRegionEl: HTMLDivElement) {
-        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
+
+
+    private async getObjectFromCaptureRegion(captureRegionEl: HTMLDivElement): Promise<Blob | null> {
+        const canvasEl = captureRegionEl.querySelector('canvas.ekyct-canvas');
         if (canvasEl) {
-            return true;
+            return await this.getBlobFromCanvas(canvasEl as HTMLCanvasElement);
         }
-        return false;
+        return null;
+    }
+
+    private getBlobFromCanvas(canvas: HTMLCanvasElement): Promise<Blob | null> {
+        return new Promise(resolve => {
+            canvas.toBlob(blob => resolve(blob));
+        })
     }
 
     private async handleDetectFace(captureRegionEl: HTMLDivElement) {
@@ -134,16 +243,16 @@ export class EkycTools {
                             rs = false;
                         }
                     });
-                    console.log(face, rs);
+                    //console.log(face, rs);
                     return rs;
                 }
-                return true;
+                //return true;
             }
         }
         return false;
     }
 
-    private foreverScan(captureRegionEl: HTMLDivElement, scanCallback: ScanCallback) {
+    private handleScan(captureRegionEl: HTMLDivElement) {
         const shadingEl = captureRegionEl.querySelector('.ekyct-shading');
         const videoEl = captureRegionEl.querySelector('.ekyct-video');
         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
@@ -169,20 +278,20 @@ export class EkycTools {
             // let imageEl = document.getElementById('img-id') as HTMLImageElement;
             // imageEl.src = canvasElement.toDataURL();
         }
-        scanCallback(captureRegionEl).then(rs => {
-            if (rs) {
-                const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
-                if (canvasEl) {
-                    (canvasEl as HTMLCanvasElement).toBlob(blob => this.latestBlob = blob);
-                }
-            };
-            this.foreverScanTimeout = setTimeout(() => {
-                this.foreverScan(captureRegionEl, scanCallback);
-            }, 100);
-        });
+        // scanCallback(captureRegionEl).then(rs => {
+        //     if (rs) {
+        //         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
+        //         if (canvasEl) {
+        //             (canvasEl as HTMLCanvasElement).toBlob(blob => this.latestBlob = blob);
+        //         }
+        //     };
+        //     this.foreverScanTimeout = setTimeout(() => {
+        //         this.foreverScan(captureRegionEl);
+        //     }, 100);
+        // });
     }
 
-    private createBasicLayout(options: EkycToolOptions, scanCallback: ScanCallback) {
+    private createBasicLayout(options: EkycToolOptions) {
         this.validateEkycToolOptions(options);
         const container = document.createElement('div');
         const containerInner = document.createElement('div');
@@ -191,22 +300,21 @@ export class EkycTools {
         container.className = 'ekyct-container';
         const captureRegion = document.createElement('div');
         captureRegion.dataset['ratio'] = options.ratio?.toString();
-        captureRegion.className = "ekyct-capture-region";
+        captureRegion.className = 'ekyct-capture-region';
         const footer = this.createFooter(options);
         containerInner.appendChild(this.createHeader());
         containerInner.appendChild(captureRegion);
         containerInner.appendChild(footer);
         container.appendChild(containerInner);
         this.getFacingMode().then(facingMode => {
-            console.log('facing mode is: ' + facingMode);
+            // console.log('facing mode is: ' + facingMode);
             if (options.enableSwitchCamera && facingMode == 'both') {
                 footer.querySelector('.ekyct-switchcam-btn')?.addEventListener('click', evt => {
                     evt.preventDefault();
-                    this.clearScanTimeout();
                     this.disableFooterButtons(footer);
                     this.toggleFacingMode();
                     this.insertVideoElement(captureRegion, facingMode, this.currentFacingMode).then(() => {
-                        this.foreverScan(captureRegion, scanCallback);
+                        // this.foreverScan(captureRegion);
                         this.enableFooterButtons(footer);
                     });
                 })
@@ -216,7 +324,7 @@ export class EkycTools {
             if (facingMode) {
                 this.insertVideoElement(captureRegion, facingMode, options.facingMode).then(() => {
                     Utils.handleScreen(containerInner);
-                    this.foreverScan(captureRegion, scanCallback);
+                    // this.foreverScan(captureRegion);
                     this.enableFooterButtons(footer);
                 });
             } else {
@@ -286,7 +394,7 @@ export class EkycTools {
     private async getFacingMode() {
         try {
             let devices = await navigator.mediaDevices.enumerateDevices();
-            console.log(devices)
+            //console.log(devices)
             let cameras = devices.filter(function (device) {
                 return device.kind == 'videoinput';
             });
@@ -307,7 +415,7 @@ export class EkycTools {
     private async insertVideoElement(parentEl: HTMLDivElement, currentFacingMode?: string, facingMode = 'environment') {
         if (currentFacingMode) {
             currentFacingMode = currentFacingMode == facingMode || currentFacingMode == 'both' ? facingMode : currentFacingMode;
-            this.clearMediaStream();
+            this.clearMediaStream(this.mediaStream);
             parentEl.querySelector('.ekyct-video')?.remove();
             const videoEl = await this.createVideoElement({ facingMode: currentFacingMode });
             this.currentFacingMode = currentFacingMode;
@@ -321,23 +429,17 @@ export class EkycTools {
     }
 
     private closeEkycWindow(container: HTMLDivElement) {
-        this.clearMediaStream();
-        this.clearScanTimeout();
-        document.body.removeChild(container);
+        this.clearMediaStream(this.mediaStream);
+        this.scanFaceRunning = false;
+        if (document.body.contains(container)) document.body.removeChild(container);
     }
 
-    private clearMediaStream() {
-        if (this.mediaStream) {
-            this.mediaStream.getTracks().forEach(track => {
-                this.mediaStream?.removeTrack(track);
+    private clearMediaStream(mediaStream: MediaStream | null) {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => {
+                mediaStream?.removeTrack(track);
                 track.stop();
             });
-        }
-    }
-
-    private clearScanTimeout() {
-        if (this.foreverScanTimeout) {
-            clearTimeout(this.foreverScanTimeout);
         }
     }
 
@@ -374,7 +476,7 @@ export class EkycTools {
         }
         if (options.enableRecord) {
             const recordButton = document.createElement('button');
-            recordButton.disabled = true;
+            // recordButton.disabled = true;
             recordButton.className = 'ekyct-btn ekyct-record-btn';
             recordButton.innerHTML = EkycRecordBtnSVG;
             footerInner.appendChild(recordButton);

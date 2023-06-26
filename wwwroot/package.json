@@ -38,6 +38,7 @@
   "dependencies": {
     "@mediapipe/face_detection": "^0.4.1646425229",
     "@tensorflow-models/face-detection": "^1.0.2",
-    "@tensorflow/tfjs": "^4.8.0"
+    "@tensorflow/tfjs-backend-webgl": "^4.8.0",
+    "@tensorflow/tfjs-core": "^4.8.0"
   }
 }

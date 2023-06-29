@@ -36,6 +36,19 @@ export class EkycTools {
         if (idCardModelUrl) this.hasCheckIDCard = true;
     }
 
+    public static async getCameraDevices() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(function (device) {
+                return device.kind === 'videoinput';
+            });
+            return cameras;
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    }
+
     public getImage(options: EkycToolOptions = {}): Promise<Blob | null> {
         options = { ...this.defaultGetImageOptions, ...options };
         return new Promise((resolve) => {
@@ -310,25 +323,26 @@ export class EkycTools {
         containerInner.appendChild(captureRegion);
         containerInner.appendChild(footer);
         container.appendChild(containerInner);
-        this.getFacingMode().then(facingMode => {
-            // console.log('facing mode is: ' + facingMode);
-            if (options.enableSwitchCamera && facingMode == 'both') {
+
+        EkycTools.getCameraDevices().then(cameraDevices => {
+            const numberOfCameras = cameraDevices.length;
+            if (options.enableSwitchCamera && numberOfCameras > 1) {
                 footer.querySelector('.ekyct-switchcam-btn')?.addEventListener('click', evt => {
                     evt.preventDefault();
                     this.disableFooterButtons(footer);
                     this.toggleFacingMode();
-                    this.insertVideoElement(captureRegion, facingMode, this.currentFacingMode).then(() => {
-                        // this.foreverScan(captureRegion);
+                    this.insertVideoElement(captureRegion, numberOfCameras, this.currentFacingMode).then(() => {
                         this.enableFooterButtons(footer);
                     });
                 })
             } else {
                 footer.querySelector('.ekyct-switchcam-btn')?.remove();
             }
-            if (facingMode) {
-                this.insertVideoElement(captureRegion, facingMode, options.facingMode).then(() => {
+
+            if (numberOfCameras > 0) {
+                this.disableFooterButtons(footer);
+                this.insertVideoElement(captureRegion, numberOfCameras, options.facingMode).then(() => {
                     Utils.handleScreen(containerInner);
-                    // this.foreverScan(captureRegion);
                     this.enableFooterButtons(footer);
                 });
             } else {
@@ -336,7 +350,7 @@ export class EkycTools {
                 if (options.enableRecord) footer.querySelector('.ekyct-record-btn')?.remove();
                 captureRegion.appendChild(this.createNotHasCamElement());
             }
-        });
+        })
         // screen.orientation.addEventListener('change', this.handleOrientationChange);
         //window.addEventListener('orientationchange', this.handleOrientationChange);
         return container;
@@ -399,34 +413,13 @@ export class EkycTools {
         return el;
     }
 
-    private async getFacingMode() {
-        try {
-            let devices = await navigator.mediaDevices.enumerateDevices();
-            //console.log(devices)
-            let cameras = devices.filter(function (device) {
-                return device.kind == 'videoinput';
-            });
-            if (cameras.length > 1) {
-                return 'both';
-            }
-            if (cameras.length > 0) {
-                return 'user';
-            }
-            return null;
-        } catch (err) {
-            console.error(err);
-            return null;
-        }
-        //return 'both';
-    }
-
-    private async insertVideoElement(parentEl: HTMLDivElement, currentFacingMode?: string, facingMode = 'environment') {
-        if (currentFacingMode) {
-            currentFacingMode = currentFacingMode == facingMode || currentFacingMode == 'both' ? facingMode : currentFacingMode;
+    private async insertVideoElement(parentEl: HTMLDivElement, numberOfCameras: number, desiredFacingMode = 'environment') {
+        if (numberOfCameras > 0) {
+            let facingMode = this.currentFacingMode === desiredFacingMode || numberOfCameras > 1 ? desiredFacingMode : this.currentFacingMode;
             this.clearMediaStream(this.mediaStream);
             parentEl.querySelector('.ekyct-video')?.remove();
-            const videoEl = await this.createVideoElement({ facingMode: currentFacingMode });
-            this.currentFacingMode = currentFacingMode;
+            const videoEl = await this.createVideoElement({ facingMode });
+            this.currentFacingMode = facingMode;
             parentEl.appendChild(videoEl);
             return {
                 videoWidth: videoEl.clientWidth,
@@ -477,21 +470,18 @@ export class EkycTools {
         }
         if (options.enableCapture) {
             const captureButton = document.createElement('button');
-            captureButton.disabled = true;
             captureButton.className = 'ekyct-btn ekyct-capture-btn';
             captureButton.innerHTML = EkycCaptureBtnSVG;
             footerInner.appendChild(captureButton);
         }
         if (options.enableRecord) {
             const recordButton = document.createElement('button');
-            // recordButton.disabled = true;
             recordButton.className = 'ekyct-btn ekyct-record-btn';
             recordButton.innerHTML = EkycRecordBtnSVG;
             footerInner.appendChild(recordButton);
         }
         if (options.enableSwitchCamera) {
             const switchCamButton = document.createElement('button');
-            switchCamButton.disabled = true;
             switchCamButton.className = 'ekyct-btn ekyct-switchcam-btn';
             switchCamButton.innerHTML = EkycSwitchCamSVG;
             footerInner.appendChild(switchCamButton);

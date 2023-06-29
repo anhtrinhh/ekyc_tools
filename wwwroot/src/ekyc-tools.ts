@@ -14,7 +14,7 @@ export interface CaptureEkycToolOptions extends BaseEkycToolOptions {
     enableFilePicker?: boolean
 }
 
-export interface RecordEkycToolOptions extends BaseEkycToolOptions { 
+export interface RecordEkycToolOptions extends BaseEkycToolOptions {
     recordMs?: number
 }
 
@@ -30,7 +30,6 @@ export class EkycTools {
     private mediaStream: (MediaStream | null) = null;
     private scanFaceRunning: boolean = false;
     private currentFacingMode: string = 'environment';
-    private faceDetector: (FaceDetector | null) = null;
     private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
         enableSwitchCamera: true,
@@ -89,14 +88,6 @@ export class EkycTools {
     public getVideo(options: RecordEkycToolOptions = {}): Promise<Blob | null> {
         options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise((resolve) => {
-            const model = SupportedModels.MediaPipeFaceDetector;
-            const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
-                runtime: 'mediapipe',
-                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
-            };
-            createDetector(model, detectorConfig).then(detector => {
-                this.faceDetector = detector;
-            });
             const container = this.createBasicLayout(options);
             container.querySelector('.ekyct-capture-region')?.classList.add('ekyct-hide-shader-border');
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
@@ -131,6 +122,17 @@ export class EkycTools {
 
     private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<Blob | null> {
         const recordMs = options.recordMs || 3000;
+        let faceDetector: FaceDetector | null = null;
+        if (options.enableValidation) {
+            const model = SupportedModels.MediaPipeFaceDetector;
+            const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
+                runtime: 'mediapipe',
+                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
+            };
+            createDetector(model, detectorConfig).then(detector => {
+                faceDetector = detector;
+            });
+        }
         return new Promise((resolve, reject) => {
             const recordButton = container.querySelector('.ekyct-record-btn');
             if (recordButton) {
@@ -153,7 +155,8 @@ export class EkycTools {
                                 try {
                                     this.handleScan(captureRegion);
                                     let rs = true;
-                                    if(options.enableValidation) rs = await this.handleDetectFace(captureRegion, options.enableAlert);
+                                    if (options.enableValidation && faceDetector)
+                                        rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
                                     if (rs) {
                                         if (!recorder) {
                                             start = 0;
@@ -252,39 +255,37 @@ export class EkycTools {
         })
     }
 
-    private async handleDetectFace(captureRegionEl: HTMLDivElement, enableAlert?: boolean) {
-        if (this.faceDetector) {
-            const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
-            if (canvasEl) {
-                const canvasElement = canvasEl as HTMLCanvasElement;
-                const faces = await this.faceDetector.estimateFaces(canvasElement);
-                if (faces.length === 1) {
-                    const face = faces[0];
-                    const faceWidth = face.box.width;
-                    const canvasWidth = parseFloat(canvasElement.style.width.slice(0, -2));
-                    const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
-                    if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
-                        let rs = true;
-                        if (faceWidth < canvasWidth * 0.35) {
-                            rs = false;
-                            if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02);
-                        }
-                        if (faceWidth > canvasWidth * 0.65) {
-                            rs = false;
-                            if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01);
-                        }
-                        if (noseTipKeypoint.y < canvasWidth * 0.35 || noseTipKeypoint.y > canvasWidth * 0.65
-                            || noseTipKeypoint.x < canvasWidth * 0.35 || noseTipKeypoint.x > canvasWidth * 0.65) {
-                            rs = false;
-                            if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_03);
-                        }
-                        if (rs && enableAlert) Utils.cleanAlert(captureRegionEl);
-                        return rs;
+    private async handleDetectFace(captureRegionEl: HTMLDivElement, faceDetector: FaceDetector, enableAlert?: boolean) {
+        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
+        if (canvasEl) {
+            const canvasElement = canvasEl as HTMLCanvasElement;
+            const faces = await faceDetector.estimateFaces(canvasElement);
+            if (faces.length === 1) {
+                const face = faces[0];
+                const faceWidth = face.box.width;
+                const canvasWidth = parseFloat(canvasElement.style.width.slice(0, -2));
+                const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
+                if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
+                    let rs = true;
+                    if (faceWidth < canvasWidth * 0.35) {
+                        rs = false;
+                        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02);
                     }
+                    if (faceWidth > canvasWidth * 0.65) {
+                        rs = false;
+                        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01);
+                    }
+                    if (noseTipKeypoint.y < canvasWidth * 0.35 || noseTipKeypoint.y > canvasWidth * 0.65
+                        || noseTipKeypoint.x < canvasWidth * 0.35 || noseTipKeypoint.x > canvasWidth * 0.65) {
+                        rs = false;
+                        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_03);
+                    }
+                    if (rs && enableAlert) Utils.cleanAlert(captureRegionEl);
+                    return rs;
                 }
             }
         }
-        if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_04);
+        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_04);
         return false;
     }
 

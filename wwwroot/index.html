@@ -23,6 +23,7 @@
     <button onclick="handleCapture()">Take photo</button>
     <button onclick="handleRecord()">Take video</button>
     <script>
+        EkycTools.getCameraDevices().then(devices => console.log(devices));
         async function handleRecord() {
             var tools = new EkycTools();
             var videoBlob = await tools.getVideo();

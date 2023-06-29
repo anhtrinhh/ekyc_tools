@@ -21,13 +21,13 @@ export const EkycStyleHTML = `<style>
     padding: 16px;
     cursor: pointer;
     line-height: 0;
-    border-radius: 50%
+    border-radius: 50%;
 }
 .ekyct-btn:hover {
-    background-color: #4b5053
+    background-color: #4b5053;
 }
 .ekyct-btn:active {
-    background-color: #5a5f63
+    background-color: #5a5f63;
 }
 .ekyct-btn:disabled {
     background-color: #2b2d30;
@@ -42,11 +42,11 @@ export const EkycStyleHTML = `<style>
     width: 100%;
     min-height: 100px;
     position: relative;
-    text-align: center;
     flex-grow: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 
 .ekyct-hide-shader-border .ekyct-shading {
@@ -118,14 +118,14 @@ export const EkycStyleHTML = `<style>
 
 .ekyct-cam-error--inner span, .ekyct-cam-error--inner p {
     color: #ff5100;
-    font-size: 14px;
+    font-size: 12px;
     text-align: center;
 }
 
 .ekyct-cam-error--inner svg {
     fill: currentColor;
-    width: 96px;
-    height: 96px;
+    width: 100px;
+    height: 100px;
 }
 
 .ekyct-shading {
@@ -151,10 +151,10 @@ export const EkycStyleHTML = `<style>
 
 .ekyct-alert {
     position: absolute;
-    top: 8px;
+    top: 10px;
     right: 0;
     transform: translateX(100%);
-    padding: 10px 20px;
+    padding: 8px 16px;
     border-radius: 8px;
     border-style: solid;
     border-width: 1px;
@@ -162,6 +162,8 @@ export const EkycStyleHTML = `<style>
     font-weight: 700;
     font-size: 12px;
     transition: all 0.2s ease-out;
+    max-width: 80%;
+    text-align: left;
 }
 
 .ekyct-alert.warning {
@@ -170,7 +172,7 @@ export const EkycStyleHTML = `<style>
 }
 
 .ekyct-alert.active {
-    right: 8px;
+    right: 10px;
     transform: translateX(0);
     z-index: 1;
 }
@@ -179,7 +181,21 @@ export const EkycStyleHTML = `<style>
     .ekyct-container--inner {
         max-width: 576px;
         left: 50%;
-        transform: translateX(-50%)
+        transform: translateX(-50%);
+    }
+
+    .ekyct-alert {
+        font-size: 14px;
+        padding: 10px 20px;
+    }
+
+    .ekyct-cam-error--inner span, .ekyct-cam-error--inner p {
+        font-size: 14px;
+    }
+
+    .ekyct-cam-error--inner svg {
+        width: 140px;
+        height: 140px;
     }
 }
 

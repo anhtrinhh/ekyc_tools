@@ -14,15 +14,22 @@ export interface CaptureEkycToolOptions extends BaseEkycToolOptions {
     enableFilePicker?: boolean
 }
 
-export interface RecordEkycToolOptions extends BaseEkycToolOptions { }
+export interface RecordEkycToolOptions extends BaseEkycToolOptions { 
+    recordMs?: number
+}
 
 type OnBlob = (file: Blob) => void;
 
 export class EkycTools {
+    public static FACE_DETECTION_WARNING_01 = 'Vui lòng đưa camera ra xa một chút!';
+    public static FACE_DETECTION_WARNING_02 = 'Vui lòng đưa camera lại gần một chút!';
+    public static FACE_DETECTION_WARNING_03 = 'Vui lòng đưa khuôn mặt vào giữa vùng chọn!';
+    public static FACE_DETECTION_WARNING_04 = 'Không thể phát hiện khuôn mặt trong vùng chọn!';
+    public static CAMERA_NOT_FOUND_WARNING = 'Không thể tìm thấy máy ảnh trên thiết bị của bạn!';
+
     private mediaStream: (MediaStream | null) = null;
     private scanFaceRunning: boolean = false;
     private currentFacingMode: string = 'environment';
-    private readonly hasCheckIDCard: boolean = false;
     private faceDetector: (FaceDetector | null) = null;
     private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
@@ -36,12 +43,10 @@ export class EkycTools {
         enableAlert: true,
         enableSwitchCamera: true,
         enableValidation: true,
-        facingMode: 'user'
+        facingMode: 'user',
+        ratio: 1,
+        recordMs: 3000
     };
-
-    public constructor(idCardModelUrl?: string) {
-        if (idCardModelUrl) this.hasCheckIDCard = true;
-    }
 
     public static async getCameraDevices() {
         try {
@@ -81,7 +86,7 @@ export class EkycTools {
         })
     }
 
-    public getVideo(recordMs = 3000, options: RecordEkycToolOptions = {}): Promise<Blob | null> {
+    public getVideo(options: RecordEkycToolOptions = {}): Promise<Blob | null> {
         options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise((resolve) => {
             const model = SupportedModels.MediaPipeFaceDetector;
@@ -99,7 +104,7 @@ export class EkycTools {
                 this.closeEkycWindow(container);
                 resolve(null);
             });
-            this.handleRecord(recordMs, container).then(blob => {
+            this.handleRecord(options, container).then(blob => {
                 if (blob) {
                     this.closeEkycWindow(container);
                     resolve(blob);
@@ -124,7 +129,8 @@ export class EkycTools {
         });
     }
 
-    private handleRecord(recordMs: number, container: HTMLDivElement): Promise<Blob | null> {
+    private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<Blob | null> {
+        const recordMs = options.recordMs || 3000;
         return new Promise((resolve, reject) => {
             const recordButton = container.querySelector('.ekyct-record-btn');
             if (recordButton) {
@@ -146,7 +152,8 @@ export class EkycTools {
                             while (this.scanFaceRunning) {
                                 try {
                                     this.handleScan(captureRegion);
-                                    let rs = await this.handleDetectFace(captureRegion);
+                                    let rs = true;
+                                    if(options.enableValidation) rs = await this.handleDetectFace(captureRegion, options.enableAlert);
                                     if (rs) {
                                         if (!recorder) {
                                             start = 0;
@@ -245,7 +252,7 @@ export class EkycTools {
         })
     }
 
-    private async handleDetectFace(captureRegionEl: HTMLDivElement) {
+    private async handleDetectFace(captureRegionEl: HTMLDivElement, enableAlert?: boolean) {
         if (this.faceDetector) {
             const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
             if (canvasEl) {
@@ -258,26 +265,26 @@ export class EkycTools {
                     const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
                     if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
                         let rs = true;
-                        if (faceWidth < canvasWidth * 0.4) {
+                        if (faceWidth < canvasWidth * 0.35) {
                             rs = false;
-                            Utils.insertAlert(captureRegionEl, 'Vui lòng đưa camera lại gần một chút!');
+                            if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02);
                         }
                         if (faceWidth > canvasWidth * 0.65) {
                             rs = false;
-                            Utils.insertAlert(captureRegionEl, 'Vui lòng đưa camera ra xa một chút!');
+                            if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01);
                         }
-                        if (noseTipKeypoint.y < canvasWidth * 0.4 || noseTipKeypoint.y > canvasWidth * 0.65
-                            || noseTipKeypoint.x < canvasWidth * 0.4 || noseTipKeypoint.x > canvasWidth * 0.65) {
+                        if (noseTipKeypoint.y < canvasWidth * 0.35 || noseTipKeypoint.y > canvasWidth * 0.65
+                            || noseTipKeypoint.x < canvasWidth * 0.35 || noseTipKeypoint.x > canvasWidth * 0.65) {
                             rs = false;
-                            Utils.insertAlert(captureRegionEl, 'Vui lòng đưa mặt vào giữa vùng chọn!');
+                            if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_03);
                         }
-                        if (rs) Utils.cleanAlert(captureRegionEl);
+                        if (rs && enableAlert) Utils.cleanAlert(captureRegionEl);
                         return rs;
                     }
                 }
             }
         }
-        Utils.insertAlert(captureRegionEl, 'Không thể phát hiện khuôn mặt trong vùng chọn!');
+        if(enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_04);
         return false;
     }
 
@@ -347,9 +354,7 @@ export class EkycTools {
                         this.enableFooterButtons(footer);
                     });
                 })
-            } else {
-                footer.querySelector('.ekyct-switchcam-btn')?.remove();
-            }
+            } else footer.querySelector('.ekyct-switchcam-btn')?.remove();
 
             if (numberOfCameras > 0) {
                 this.disableFooterButtons(footer);
@@ -362,7 +367,7 @@ export class EkycTools {
                 footer.querySelector('.ekyct-record-btn')?.remove();
                 captureRegion.appendChild(this.createNotHasCamElement());
             }
-        })
+        });
         // screen.orientation.addEventListener('change', this.handleOrientationChange);
         //window.addEventListener('orientationchange', this.handleOrientationChange);
         return container;
@@ -375,7 +380,7 @@ export class EkycTools {
         if (switchcamBtn) {
             (switchcamBtn as HTMLButtonElement).disabled = false;
         }
-        if (!this.hasCheckIDCard && captureBtn) {
+        if (captureBtn) {
             (captureBtn as HTMLButtonElement).disabled = false;
         }
         if (recordBtn) {
@@ -390,7 +395,7 @@ export class EkycTools {
         if (switchcamBtn) {
             (switchcamBtn as HTMLButtonElement).disabled = true;
         }
-        if (!this.hasCheckIDCard && captureBtn) {
+        if (captureBtn) {
             (captureBtn as HTMLButtonElement).disabled = true;
         }
         if (recordBtn) {
@@ -405,7 +410,8 @@ export class EkycTools {
     private validateEkycToolOptions(options: BaseEkycToolOptions) {
         if (!options.enableSwitchCamera) options.enableSwitchCamera = false;
         if (!options.enableAlert) options.enableAlert = false;
-        if (!options.ratio) options.ratio = 1;
+        if (!options.enableValidation) options.enableValidation = false;
+        if (!options.ratio) options.ratio = 0;
         if (!options.facingMode) options.facingMode = 'environment';
     }
 
@@ -417,7 +423,7 @@ export class EkycTools {
         const pEl1 = document.createElement('p');
         pEl1.innerHTML = EkycCamErrorSVG;
         const pEl2 = document.createElement('p');
-        pEl2.innerText = 'Không thể tìm thấy máy ảnh trên thiết bị của bạn!';
+        pEl2.innerText = EkycTools.CAMERA_NOT_FOUND_WARNING;
         elInner.append(pEl1, pEl2);
         el.appendChild(elInner);
         return el;

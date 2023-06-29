@@ -2,14 +2,19 @@ import { EkycCamErrorSVG, EkycCaptureBtnSVG, EkycCloseBtnSVG, EkycFileBtnSVG, Ek
 import { Utils } from './utils';
 import { createDetector, SupportedModels, FaceDetector, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
 
-export interface EkycToolOptions {
+export interface BaseEkycToolOptions {
     ratio?: number,
-    enableFilePicker?: boolean,
-    enableCapture?: boolean,
-    enableRecord?: boolean,
     enableSwitchCamera?: boolean,
+    enableAlert?: boolean,
+    enableValidation?: boolean,
     facingMode?: string
 }
+
+export interface CaptureEkycToolOptions extends BaseEkycToolOptions {
+    enableFilePicker?: boolean
+}
+
+export interface RecordEkycToolOptions extends BaseEkycToolOptions { }
 
 type OnBlob = (file: Blob) => void;
 
@@ -19,16 +24,18 @@ export class EkycTools {
     private currentFacingMode: string = 'environment';
     private readonly hasCheckIDCard: boolean = false;
     private faceDetector: (FaceDetector | null) = null;
-    private readonly defaultGetImageOptions: EkycToolOptions = {
-        enableCapture: true,
+    private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
         enableSwitchCamera: true,
+        enableAlert: true,
+        enableValidation: true,
         ratio: 0.6,
         facingMode: 'environment'
     };
-    private readonly defaultGetVideoOptions: EkycToolOptions = {
-        enableRecord: true,
+    private readonly defaultGetVideoOptions: RecordEkycToolOptions = {
+        enableAlert: true,
         enableSwitchCamera: true,
+        enableValidation: true,
         facingMode: 'user'
     };
 
@@ -49,7 +56,7 @@ export class EkycTools {
         }
     }
 
-    public getImage(options: EkycToolOptions = {}): Promise<Blob | null> {
+    public getImage(options: CaptureEkycToolOptions = {}): Promise<Blob | null> {
         options = { ...this.defaultGetImageOptions, ...options };
         return new Promise((resolve) => {
             const container = this.createBasicLayout(options);
@@ -64,19 +71,17 @@ export class EkycTools {
                     resolve(file);
                 });
             }
-            if (options.enableCapture) {
-                this.handleCapture(container).then(blob => {
-                    if (blob) {
-                        this.closeEkycWindow(container);
-                        resolve(blob);
-                    }
-                })
-            }
+            this.handleCapture(container).then(blob => {
+                if (blob) {
+                    this.closeEkycWindow(container);
+                    resolve(blob);
+                }
+            });
             document.body.appendChild(container);
         })
     }
 
-    public getVideo(recordMs = 3000, options: EkycToolOptions = {}): Promise<Blob | null> {
+    public getVideo(recordMs = 3000, options: RecordEkycToolOptions = {}): Promise<Blob | null> {
         options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise((resolve) => {
             const model = SupportedModels.MediaPipeFaceDetector;
@@ -94,14 +99,12 @@ export class EkycTools {
                 this.closeEkycWindow(container);
                 resolve(null);
             });
-            if (options.enableRecord) {
-                this.handleRecord(recordMs, container).then(blob => {
-                    if (blob) {
-                        this.closeEkycWindow(container);
-                        resolve(blob);
-                    }
-                })
-            }
+            this.handleRecord(recordMs, container).then(blob => {
+                if (blob) {
+                    this.closeEkycWindow(container);
+                    resolve(blob);
+                }
+            });
             document.body.appendChild(container);
         })
     }
@@ -249,23 +252,32 @@ export class EkycTools {
                 const canvasElement = canvasEl as HTMLCanvasElement;
                 const faces = await this.faceDetector.estimateFaces(canvasElement);
                 if (faces.length === 1) {
-                    // const face = faces[0];
-                    // const width = face.box.width;
-                    // const height = face.box.height;
-                    // const eyeKeypoints = face.keypoints.filter(kp => kp.name == 'rightEye' || kp.name == 'leftEye');
-                    let rs = true;
-                    // eyeKeypoints.forEach(kp => {
-                    //     if (kp.x >= width || kp.x <= 20
-                    //         || kp.y >= (height / 2) || kp.y <= 20) {
-                    //         rs = false;
-                    //     }
-                    // });
-                    //console.log(face, rs);
-                    return rs;
+                    const face = faces[0];
+                    const faceWidth = face.box.width;
+                    const canvasWidth = parseFloat(canvasElement.style.width.slice(0, -2));
+                    const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
+                    if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
+                        let rs = true;
+                        if (faceWidth < canvasWidth * 0.4) {
+                            rs = false;
+                            Utils.insertAlert(captureRegionEl, 'Vui lòng đưa camera lại gần một chút!');
+                        }
+                        if (faceWidth > canvasWidth * 0.65) {
+                            rs = false;
+                            Utils.insertAlert(captureRegionEl, 'Vui lòng đưa camera ra xa một chút!');
+                        }
+                        if (noseTipKeypoint.y < canvasWidth * 0.4 || noseTipKeypoint.y > canvasWidth * 0.65
+                            || noseTipKeypoint.x < canvasWidth * 0.4 || noseTipKeypoint.x > canvasWidth * 0.65) {
+                            rs = false;
+                            Utils.insertAlert(captureRegionEl, 'Vui lòng đưa mặt vào giữa vùng chọn!');
+                        }
+                        if (rs) Utils.cleanAlert(captureRegionEl);
+                        return rs;
+                    }
                 }
-                //return true;
             }
         }
+        Utils.insertAlert(captureRegionEl, 'Không thể phát hiện khuôn mặt trong vùng chọn!');
         return false;
     }
 
@@ -279,8 +291,8 @@ export class EkycTools {
             const canvasElement = canvasEl as HTMLCanvasElement;
             const widthRatio = videoElement.videoWidth / videoElement.clientWidth;
             const heightRatio = videoElement.videoHeight / videoElement.clientHeight;
-            const borderX = parseInt(shadingElement.style.borderLeftWidth.slice(0, -2));
-            const borderY = parseInt(shadingElement.style.borderTopWidth.slice(0, -2));
+            const borderX = parseFloat(shadingElement.style.borderLeftWidth.slice(0, -2));
+            const borderY = parseFloat(shadingElement.style.borderTopWidth.slice(0, -2));
             const qrRegionWidth = videoElement.clientWidth - borderX * 2;
             const qrRegionHeight = videoElement.clientHeight - borderY * 2;
             const sWidthOffset = qrRegionWidth * widthRatio;
@@ -308,7 +320,7 @@ export class EkycTools {
         // });
     }
 
-    private createBasicLayout(options: EkycToolOptions) {
+    private createBasicLayout(options: BaseEkycToolOptions) {
         this.validateEkycToolOptions(options);
         const container = document.createElement('div');
         const containerInner = document.createElement('div');
@@ -346,8 +358,8 @@ export class EkycTools {
                     this.enableFooterButtons(footer);
                 });
             } else {
-                if (options.enableCapture) footer.querySelector('.ekyct-capture-btn')?.remove();
-                if (options.enableRecord) footer.querySelector('.ekyct-record-btn')?.remove();
+                footer.querySelector('.ekyct-capture-btn')?.remove();
+                footer.querySelector('.ekyct-record-btn')?.remove();
                 captureRegion.appendChild(this.createNotHasCamElement());
             }
         })
@@ -390,11 +402,9 @@ export class EkycTools {
         this.currentFacingMode = this.currentFacingMode === 'environment' ? 'user' : 'environment';
     }
 
-    private validateEkycToolOptions(options: EkycToolOptions) {
-        if (!options.enableCapture) options.enableCapture = false;
-        if (!options.enableFilePicker) options.enableFilePicker = false;
-        if (!options.enableRecord) options.enableRecord = false;
+    private validateEkycToolOptions(options: BaseEkycToolOptions) {
         if (!options.enableSwitchCamera) options.enableSwitchCamera = false;
+        if (!options.enableAlert) options.enableAlert = false;
         if (!options.ratio) options.ratio = 1;
         if (!options.facingMode) options.facingMode = 'environment';
     }
@@ -457,7 +467,7 @@ export class EkycTools {
         return header;
     }
 
-    private createFooter(options: EkycToolOptions) {
+    private createFooter(options: any) {
         const footer = document.createElement('div');
         footer.className = 'ekyct-footer';
         const footerInner = document.createElement('div');
@@ -468,13 +478,12 @@ export class EkycTools {
             fileButton.innerHTML = EkycFileBtnSVG;
             footerInner.appendChild(fileButton);
         }
-        if (options.enableCapture) {
+        if (this.instanceOfCaptureEkycToolOptions(options)) {
             const captureButton = document.createElement('button');
             captureButton.className = 'ekyct-btn ekyct-capture-btn';
             captureButton.innerHTML = EkycCaptureBtnSVG;
             footerInner.appendChild(captureButton);
-        }
-        if (options.enableRecord) {
+        } else {
             const recordButton = document.createElement('button');
             recordButton.className = 'ekyct-btn ekyct-record-btn';
             recordButton.innerHTML = EkycRecordBtnSVG;
@@ -488,6 +497,10 @@ export class EkycTools {
         }
         footer.appendChild(footerInner);
         return footer;
+    }
+
+    private instanceOfCaptureEkycToolOptions(object: any) {
+        return 'enableFilePicker' in object;
     }
 
     private createVideoElement(videoConstraints: any): Promise<HTMLVideoElement> {

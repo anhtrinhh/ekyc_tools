@@ -1,4 +1,5 @@
 export class Utils {
+    private static insertAlertTimeout: any = null;
     public static shardBorderLargeSize = 40;
     public static shardBorderSmallSize = 5;
     public static handleScreen(containerInnerEl: Element) {
@@ -24,8 +25,8 @@ export class Utils {
         if (videoEl && shadingEl) {
             parent.querySelector('.ekyct-canvas')?.remove();
             const shadingDivEl = shadingEl as HTMLDivElement;
-            const width = videoEl.clientWidth - parseInt(shadingDivEl.style.borderLeftWidth.slice(0, -2)) * 2;
-            const height = videoEl.clientHeight - parseInt(shadingDivEl.style.borderTopWidth.slice(0, -2)) * 2;
+            const width = videoEl.clientWidth - parseFloat(shadingDivEl.style.borderLeftWidth.slice(0, -2)) * 2;
+            const height = videoEl.clientHeight - parseFloat(shadingDivEl.style.borderTopWidth.slice(0, -2)) * 2;
             const canvasElement = document.createElement('canvas');
             canvasElement.className = 'ekyct-canvas';
             canvasElement.style.width = `${width}px`;
@@ -126,6 +127,59 @@ export class Utils {
             borderX,
             borderY
         };
+    }
+
+    public static insertAlert(parentEl: HTMLDivElement, text: string, type = 'warning') {
+        if (parentEl) {
+            let alertEl = parentEl.querySelector('.ekyct-alert');
+            if (alertEl) {
+                if (alertEl.innerHTML !== text) {
+                    if (alertEl.classList.contains('active') && !Utils.insertAlertTimeout) alertEl.classList.remove('active');
+                    if (!Utils.insertAlertTimeout) Utils.setInsertAlertTimeout(alertEl, text, 2200, 200);
+                }
+            } else {
+                alertEl = document.createElement('div');
+                alertEl.className = `ekyct-alert ${type}`;
+                parentEl.appendChild(alertEl);
+                if (!alertEl.classList.contains('active') && !Utils.insertAlertTimeout) Utils.setInsertAlertTimeout(alertEl, text, 2020, 20);
+            }
+        }
+    }
+
+    public static cleanAlert(parentEl: HTMLDivElement) {
+        let alertEl = parentEl.querySelector('.ekyct-alert');
+        if (alertEl && alertEl.classList.contains('active')) {
+            if (Utils.insertAlertTimeout) {
+                setTimeout(() => {
+                    alertEl!.classList.remove('active');
+                    setTimeout(() => {
+                        alertEl!.remove();
+                    }, 200);
+                }, 400);
+            } else {
+                alertEl.classList.remove('active');
+                setTimeout(() => {
+                    alertEl!.remove();
+                }, 200);
+            }
+        }
+    }
+
+    private static setInsertAlertTimeout(alertEl: Element, text: string, innerTimeoutms: number, outerTimeoutMs: number) {
+        Utils.insertAlertTimeout = setTimeout(() => {
+            alertEl.classList.add('active');
+            alertEl.innerHTML = text;
+            setTimeout(() => {
+                Utils.clearInsertAlertTimeout();
+            }, innerTimeoutms);
+        }, outerTimeoutMs);
+    }
+
+    private static clearInsertAlertTimeout() {
+        if (Utils.insertAlertTimeout) {
+            clearTimeout(Utils.insertAlertTimeout);
+            Utils.insertAlertTimeout = null;
+        }
     }
 
     public static delay(delayInMS: number) {

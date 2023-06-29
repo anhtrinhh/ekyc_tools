@@ -1,6 +1,6 @@
 export const EkycStyleHTML = `<style>
 .ekyct-container, .ekyct-container * {margin: 0;padding:0;box-sizing: border-box}
-.ekyct-container{position:fixed;top:0;left:0;background-color: #202124;z-index:99;height:100%;width:100%}
+.ekyct-container{position:fixed;top:0;left:0;background-color: #202124;z-index:99;height:100%;width:100%;font-family: Arial, Helvetica, sans-serif}
 .ekyct-container--inner {display: flex; flex-direction:column;width:100%;height:100%;position:absolute;top:0;left:0}
 .ekyct-container--rotate {flex-direction: row;}
 .ekyct-container--rotate .ekyct-header, .ekyct-container--rotate .ekyct-footer {
@@ -117,7 +117,7 @@ export const EkycStyleHTML = `<style>
 }
 
 .ekyct-cam-error--inner span, .ekyct-cam-error--inner p {
-    color: #ff7011;
+    color: #ff5100;
     font-size: 14px;
     text-align: center;
 }
@@ -148,6 +148,32 @@ export const EkycStyleHTML = `<style>
     width: unset;
     height: 100%;
 } 
+
+.ekyct-alert {
+    position: absolute;
+    top: 8px;
+    right: 0;
+    transform: translateX(100%);
+    padding: 10px 20px;
+    border-radius: 8px;
+    border-style: solid;
+    border-width: 1px;
+    background-color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    transition: all 0.2s ease-out;
+}
+
+.ekyct-alert.warning {
+    border-color: #ffae00;
+    color: #ffae00;
+}
+
+.ekyct-alert.active {
+    right: 8px;
+    transform: translateX(0);
+    z-index: 1;
+}
 
 @media (min-width: 768px) {
     .ekyct-container--inner {

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="./dist/ekyc-tools.min.js"></script>
+    <script src="./minified/ekyc-tools.min.js"></script>
     <style>
         h1 {
             margin: 0;
@@ -26,10 +26,11 @@
         EkycTools.getCameraDevices().then(devices => console.log(devices));
         async function handleRecord() {
             var tools = new EkycTools();
-            var videoBlob = await tools.getVideo();
-            if (videoBlob) {
+            var rs = await tools.getVideo();
+            console.log(rs);
+            if (rs) {
                 const videoEl = document.getElementById('video-id');
-                const url = URL.createObjectURL(videoBlob);
+                const url = URL.createObjectURL(rs.blob);
                 videoEl.controls = true;
                 videoEl.muted = true;
                 videoEl.src = url;
@@ -42,9 +43,10 @@
         async function handleCapture() {
             var tools = new EkycTools();
             var capture = await tools.getImage();
+            console.log(capture);
             if (capture) {
                 const img = document.getElementById('img-id');
-                const url = URL.createObjectURL(capture);
+                const url = URL.createObjectURL(capture.blob);
                 img.src = url;
                 img.onload = () => {
                     URL.revokeObjectURL(url);

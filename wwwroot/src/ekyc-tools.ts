@@ -2,7 +2,7 @@ import { EkycCamErrorSVG, EkycCaptureBtnSVG, EkycCloseBtnSVG, EkycFileBtnSVG, Ek
 import { Utils } from './utils';
 import { createDetector, SupportedModels, FaceDetector, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
 
-export interface BaseEkycToolOptions {
+interface BaseEkycToolOptions {
     ratio?: number,
     enableSwitchCamera?: boolean,
     enableAlert?: boolean,
@@ -10,15 +10,22 @@ export interface BaseEkycToolOptions {
     facingMode?: string
 }
 
-export interface CaptureEkycToolOptions extends BaseEkycToolOptions {
+interface CaptureEkycToolOptions extends BaseEkycToolOptions {
     enableFilePicker?: boolean
 }
 
-export interface RecordEkycToolOptions extends BaseEkycToolOptions {
+interface RecordEkycToolOptions extends BaseEkycToolOptions {
     recordMs?: number
 }
 
-type OnBlob = (file: Blob) => void;
+interface EkycToolResult {
+    blob: Blob | null,
+    contentName: string,
+    contentType: string,
+    contentLength: number
+}
+
+type OnBlob = (file: EkycToolResult) => void;
 
 export class EkycTools {
     public static FACE_DETECTION_WARNING_01 = 'Vui lòng đưa camera ra xa một chút!';
@@ -60,7 +67,7 @@ export class EkycTools {
         }
     }
 
-    public getImage(options: CaptureEkycToolOptions = {}): Promise<Blob | null> {
+    public getImage(options: CaptureEkycToolOptions = {}): Promise<EkycToolResult | null> {
         options = { ...this.defaultGetImageOptions, ...options };
         return new Promise((resolve) => {
             const container = this.createBasicLayout(options);
@@ -70,22 +77,22 @@ export class EkycTools {
                 resolve(null);
             });
             if (options.enableFilePicker) {
-                this.handleFilePicker(container, 'image/png,image/jpeg', file => {
+                this.handleFilePicker(container, 'image/png,image/jpeg', rs => {
                     this.closeEkycWindow(container);
-                    resolve(file);
+                    resolve(rs);
                 });
             }
-            this.handleCapture(container).then(blob => {
-                if (blob) {
+            this.handleCapture(container).then(rs => {
+                if (rs) {
                     this.closeEkycWindow(container);
-                    resolve(blob);
+                    resolve(rs);
                 }
             });
             document.body.appendChild(container);
         })
     }
 
-    public getVideo(options: RecordEkycToolOptions = {}): Promise<Blob | null> {
+    public getVideo(options: RecordEkycToolOptions = {}): Promise<EkycToolResult | null> {
         options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise((resolve) => {
             const container = this.createBasicLayout(options);
@@ -95,10 +102,10 @@ export class EkycTools {
                 this.closeEkycWindow(container);
                 resolve(null);
             });
-            this.handleRecord(options, container).then(blob => {
-                if (blob) {
+            this.handleRecord(options, container).then(rs => {
+                if (rs) {
                     this.closeEkycWindow(container);
-                    resolve(blob);
+                    resolve(rs);
                 }
             });
             document.body.appendChild(container);
@@ -111,7 +118,16 @@ export class EkycTools {
         fileInput.accept = accept;
         fileInput.onchange = () => {
             if (fileInput.files) {
-                callback(fileInput.files[0])
+                const file = fileInput.files[0];
+                const fileExtension = file.name.match(/\.(png|jpg|jpeg)$/i);
+                if (fileExtension && fileExtension.length > 0) {
+                    callback({
+                        blob: file,
+                        contentName: `${Utils.newGuid()}${fileExtension[0].toLowerCase()}`,
+                        contentLength: file.size,
+                        contentType: file.type
+                    });
+                }
             }
         };
         container.querySelector('.ekyct-filepicker-btn')?.addEventListener('click', evt => {
@@ -120,7 +136,7 @@ export class EkycTools {
         });
     }
 
-    private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<Blob | null> {
+    private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<EkycToolResult | null> {
         const recordMs = options.recordMs || 3000;
         let faceDetector: FaceDetector | null = null;
         if (options.enableValidation) {
@@ -197,7 +213,15 @@ export class EkycTools {
                                 }
                             }
                             this.scanFaceRunning = false;
-                            if (data.length > 0) resolve(new Blob(data, { type: "video/webm" }))
+                            if (data.length > 0) {
+                                const blob = new Blob(data, { type: 'video/webm' });
+                                resolve({
+                                    blob: blob,
+                                    contentLength: blob.size,
+                                    contentType: blob.type,
+                                    contentName: `${Utils.newGuid()}.webm`
+                                });
+                            }
                             else resolve(null);
                         } else reject('Canvas not exists!');
                     } else reject('Capture region not exists!');
@@ -219,7 +243,7 @@ export class EkycTools {
         }
     }
 
-    private handleCapture(container: HTMLDivElement): Promise<Blob | null> {
+    private handleCapture(container: HTMLDivElement): Promise<EkycToolResult | null> {
         return new Promise((resolve, reject) => {
             const captureButton = container.querySelector('.ekyct-capture-btn');
             if (captureButton) {
@@ -230,7 +254,13 @@ export class EkycTools {
                         const captureRegion = captureRegionEl as HTMLDivElement;
                         this.handleScan(captureRegion);
                         const rs = await this.getObjectFromCaptureRegion(captureRegion);
-                        resolve(rs);
+                        if (rs) resolve({
+                            blob: rs,
+                            contentLength: rs.size,
+                            contentName: `${Utils.newGuid()}.png`,
+                            contentType: 'image/png'
+                        });
+                        else resolve(null);
                     } else reject('Capture region not exists!');
                 });
             } else {

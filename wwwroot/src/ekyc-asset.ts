@@ -49,6 +49,10 @@ export const EkycStyleHTML = `<style>
     overflow: hidden;
 }
 
+.ekyct-capture-region.ekyct-hide-shading .ekyct-shading {
+    display: none !important;
+}
+
 .ekyct-hide-shader-border .ekyct-shading {
     overflow: hidden;
 }
@@ -177,6 +181,57 @@ export const EkycStyleHTML = `<style>
     z-index: 10;
 }
 
+.ekyct-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.ekyct-loader-content {
+    position: relative;
+    width: 48px;
+    height: 48px;
+}
+
+.ekyct-loader-content span {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(calc(36deg * var(--i)));
+}
+
+.ekyct-loader-content span::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: rgba(254, 254, 254, 0.8);
+    transform: scale(0);
+    animation: loaderAnimate 1s linear infinite;
+    animation-delay: calc(0.1s * var(--i));
+}
+
+@keyframes loaderAnimate {
+    0% {
+        transform: scale(1)
+    }
+    80%,100% {
+        transform: scale(0)
+    }
+}
+
 @media (min-width: 768px) {
     .ekyct-container--inner {
         max-width: 576px;
@@ -197,11 +252,27 @@ export const EkycStyleHTML = `<style>
         width: 140px;
         height: 140px;
     }
+    .ekyct-loader-content {
+        width: 54px;
+        height: 54px;
+    }
+    .ekyct-loader-content span::before {
+        width: 14px;
+        height: 14px;
+    }
 }
 
 @media (min-width: 992px) {
     .ekyct-container--inner {
         max-width: 768px;
+    }
+    .ekyct-loader-content {
+        width: 60px;
+        height: 60px;
+    }
+    .ekyct-loader-content span::before {
+        width: 16px;
+        height: 16px;
     }
 }
 

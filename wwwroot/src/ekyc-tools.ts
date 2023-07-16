@@ -41,7 +41,7 @@ export class EkycTools {
         enableFilePicker: true,
         enableSwitchCamera: true,
         enableAlert: true,
-        enableValidation: true,
+        enableValidation: false,
         ratio: 0.6,
         facingMode: 'environment'
     };
@@ -51,7 +51,7 @@ export class EkycTools {
         enableValidation: true,
         facingMode: 'user',
         ratio: 1,
-        recordMs: 3000
+        recordMs: 6000
     };
 
     public static async getCameraDevices() {
@@ -137,97 +137,106 @@ export class EkycTools {
     }
 
     private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<EkycToolResult | null> {
-        const recordMs = options.recordMs || 3000;
-        let faceDetector: FaceDetector | null = null;
-        if (options.enableValidation) {
-            const model = SupportedModels.MediaPipeFaceDetector;
-            const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
-                runtime: 'mediapipe',
-                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
-            };
-            createDetector(model, detectorConfig).then(detector => {
-                faceDetector = detector;
-            });
-        }
         return new Promise((resolve, reject) => {
             const recordButton = container.querySelector('.ekyct-record-btn');
             if (recordButton) {
-                recordButton.addEventListener('click', async evt => {
-                    evt.preventDefault();
-                    this.disableFooterButtons(container.querySelector('.ekyct-footer') as HTMLDivElement);
-                    const captureRegionEl = container.querySelector('div.ekyct-capture-region');
-                    if (captureRegionEl) {
-                        let data: BlobPart[] = [];
-                        const captureRegion = captureRegionEl as HTMLDivElement;
-                        let percent = 0;
-                        let duration = 0;
-                        let start = 0;
-                        const canvasEl = captureRegion.querySelector('canvas.ekyct-canvas') as HTMLCanvasElement;
-                        if (canvasEl) {
-                            let stream = canvasEl.captureStream();
-                            let recorder: MediaRecorder | undefined;
-                            this.scanFaceRunning = true;
-                            while (this.scanFaceRunning) {
-                                try {
-                                    this.handleScan(captureRegion);
-                                    let rs = true;
-                                    if (options.enableValidation && faceDetector)
-                                        rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
-                                    if (rs) {
-                                        if (!recorder) {
-                                            start = 0;
-                                            duration = 0;
-                                            percent = 0;
-                                            data = [];
-                                            recorder = new MediaRecorder(stream);
-                                            recorder.ondataavailable = event => data.push(event.data);
-                                            recorder.start();
-                                        }
-                                        let nowTimestamp = new Date().getTime();
-                                        if (start === 0) start = nowTimestamp;
-                                        duration = nowTimestamp - start;
-                                        let ratio = duration / recordMs;
-                                        percent = ratio >= 1 ? 100 : Math.floor(ratio * 100);
-                                    } else {
-                                        await this.stopMediaRecorder(recorder);
-                                        start = 0;
-                                        duration = 0;
-                                        percent = 0;
-                                        data = [];
-                                        recorder = undefined;
-                                    }
-                                    await Utils.delay(10);
-                                    captureRegionEl.querySelectorAll('.ekyct-circle-region-point').forEach((elm, ix) => {
-                                        if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
-                                        else elm.classList.remove('ekyct-circle-region-point--marked')
-                                    });
-                                } catch (err) {
-                                    console.error(err);
-                                    break;
-                                }
-                                if (recordMs <= duration) {
-                                    await this.stopMediaRecorder(recorder);
-                                    this.clearMediaStream(stream);
-                                    await Utils.delay(250);
-                                    break;
-                                }
-                            }
-                            this.scanFaceRunning = false;
-                            if (data.length > 0) {
-                                const blob = new Blob(data, { type: 'video/webm' });
-                                resolve({
-                                    blob: blob,
-                                    contentLength: blob.size,
-                                    contentType: blob.type,
-                                    contentName: `${Utils.newGuid()}.webm`
-                                });
-                            }
-                            else resolve(null);
-                        } else reject('Canvas not exists!');
-                    } else reject('Capture region not exists!');
-                });
+                if (options.enableValidation) {
+                    const model = SupportedModels.MediaPipeFaceDetector;
+                    const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
+                        runtime: 'mediapipe',
+                        solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
+                    };
+                    Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
+                    createDetector(model, detectorConfig).then(detector => {
+                        recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container, detector));
+                        const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
+                        if(footer) this.enableFooterButtons(footer);
+                        Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
+                    });
+                } else recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container));
             } else reject('Record button not exists!');
         })
+    }
+
+    private async handleClickRecord(evt: Event, 
+        resolve: (value: EkycToolResult | PromiseLike<EkycToolResult | null> | null) => void, 
+        reject: (reason?: any) => void,
+        options: RecordEkycToolOptions, 
+        container: HTMLDivElement,
+        faceDetector?: FaceDetector) {
+        evt.preventDefault();
+        const recordMs = options.recordMs || 6000;
+        this.disableFooterButtons(container.querySelector('.ekyct-footer') as HTMLDivElement);
+        const captureRegionEl = container.querySelector('div.ekyct-capture-region');
+        if (captureRegionEl) {
+            let data: BlobPart[] = [];
+            const captureRegion = captureRegionEl as HTMLDivElement;
+            let percent = 0;
+            let duration = 0;
+            let start = 0;
+            const canvasEl = captureRegion.querySelector('canvas.ekyct-canvas') as HTMLCanvasElement;
+            if (canvasEl) {
+                let stream = canvasEl.captureStream();
+                let recorder: MediaRecorder | undefined;
+                this.scanFaceRunning = true;
+                while (this.scanFaceRunning) {
+                    try {
+                        this.handleScan(captureRegion);
+                        let rs = true;
+                        if (options.enableValidation && faceDetector)
+                            rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
+                        if (rs) {
+                            if (!recorder) {
+                                start = 0;
+                                duration = 0;
+                                percent = 0;
+                                data = [];
+                                recorder = new MediaRecorder(stream);
+                                recorder.ondataavailable = event => data.push(event.data);
+                                recorder.start();
+                            }
+                            let nowTimestamp = new Date().getTime();
+                            if (start === 0) start = nowTimestamp;
+                            duration = nowTimestamp - start;
+                            let ratio = duration / recordMs;
+                            percent = ratio >= 1 ? 100 : Math.floor(ratio * 100);
+                        } else {
+                            await this.stopMediaRecorder(recorder);
+                            start = 0;
+                            duration = 0;
+                            percent = 0;
+                            data = [];
+                            recorder = undefined;
+                        }
+                        await Utils.delay(10);
+                        captureRegionEl.querySelectorAll('.ekyct-circle-region-point').forEach((elm, ix) => {
+                            if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
+                            else elm.classList.remove('ekyct-circle-region-point--marked')
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        break;
+                    }
+                    if (recordMs <= duration) {
+                        await this.stopMediaRecorder(recorder);
+                        this.clearMediaStream(stream);
+                        await Utils.delay(250);
+                        break;
+                    }
+                }
+                this.scanFaceRunning = false;
+                if (data.length > 0) {
+                    const blob = new Blob(data, { type: 'video/webm' });
+                    resolve({
+                        blob: blob,
+                        contentLength: blob.size,
+                        contentType: blob.type,
+                        contentName: `${Utils.newGuid()}.webm`
+                    });
+                }
+                else resolve(null);
+            } else reject('Canvas not exists!');
+        } else reject('Capture region not exists!');
     }
 
     private async stopMediaRecorder(recorder?: MediaRecorder) {
@@ -297,11 +306,11 @@ export class EkycTools {
                 const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
                 if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
                     let rs = true;
-                    if (faceWidth < canvasWidth * 0.35) {
+                    if (faceWidth < canvasWidth * 0.3) {
                         rs = false;
                         if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02);
                     }
-                    if (faceWidth > canvasWidth * 0.65) {
+                    if (faceWidth > canvasWidth * 0.6) {
                         rs = false;
                         if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01);
                     }
@@ -391,7 +400,7 @@ export class EkycTools {
                 this.disableFooterButtons(footer);
                 this.insertVideoElement(captureRegion, numberOfCameras, options.facingMode).then(() => {
                     Utils.handleScreen(containerInner);
-                    this.enableFooterButtons(footer);
+                    if(!options.enableValidation) this.enableFooterButtons(footer);
                 });
             } else {
                 footer.querySelector('.ekyct-capture-btn')?.remove();

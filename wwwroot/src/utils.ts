@@ -188,6 +188,25 @@ export class Utils {
         });
     }
 
+    public static toggleLoader(isOpen = true, parentEl: Element | null = document.body) {
+        if (parentEl) {
+            const existsLoader = parentEl.querySelector('.ekyct-loader');
+            if (existsLoader) existsLoader.remove();
+            if (isOpen) {
+                const loader = Utils.createLoaderElement();
+                parentEl.appendChild(loader);
+            }
+        }
+    }
+
+    public static toggleLoaderOnCaptureRegion(isOpen = true, captureRegion: Element | null) {
+        if (captureRegion) {
+            if (isOpen) captureRegion.classList.add('ekyct-hide-shading');
+            else captureRegion.classList.remove('ekyct-hide-shading');
+            this.toggleLoader(isOpen, captureRegion);
+        }
+    }
+
     private static insertCircleRegion(parentEl: HTMLDivElement) {
         const circleRegion = document.createElement('div');
         const parentWidth = parseFloat(parentEl.style.width.slice(0, -2));
@@ -203,6 +222,20 @@ export class Utils {
         parentEl.appendChild(circleRegion);
     }
 
+    private static createLoaderElement() {
+        const loaderDiv = document.createElement('div');
+        loaderDiv.className = 'ekyct-loader';
+        const loaderContentDiv = document.createElement('div');
+        loaderContentDiv.className = 'ekyct-loader-content';
+        for (let i = 1; i <= 10; i++) {
+            const dotSpan = document.createElement('span');
+            dotSpan.setAttribute('style', '--i:' + i);
+            loaderContentDiv.appendChild(dotSpan);
+        }
+        loaderDiv.appendChild(loaderContentDiv);
+        return loaderDiv;
+    }
+
     public static newGuid() {
         let guid = 'xxxxxxxx-xxxx-4xxx-yxxx-'.replace(/[xy]/g, function (c) {
             var r = Math.random() * 16 | 0,
@@ -211,15 +244,15 @@ export class Utils {
         });
         let dateNow = new Date;
         guid += `${dateNow.getUTCFullYear()}`;
-        if(dateNow.getUTCMonth() < 9) guid += `0${dateNow.getUTCMonth() + 1}`;
+        if (dateNow.getUTCMonth() < 9) guid += `0${dateNow.getUTCMonth() + 1}`;
         else guid += (dateNow.getUTCMonth() + 1);
-        if(dateNow.getUTCDate() < 10) guid += `0${dateNow.getUTCDate()}`;
+        if (dateNow.getUTCDate() < 10) guid += `0${dateNow.getUTCDate()}`;
         else guid += `${dateNow.getUTCDate()}`;
-        if(dateNow.getUTCHours() < 10) guid += `0${dateNow.getUTCHours()}`;
+        if (dateNow.getUTCHours() < 10) guid += `0${dateNow.getUTCHours()}`;
         else guid += dateNow.getUTCHours();
-        if(dateNow.getUTCMinutes() < 10) guid += `0${dateNow.getUTCMinutes()}`;
+        if (dateNow.getUTCMinutes() < 10) guid += `0${dateNow.getUTCMinutes()}`;
         else guid += dateNow.getUTCMinutes();
-        if(dateNow.getUTCSeconds() < 10) guid += `0${dateNow.getUTCSeconds()}`;
+        if (dateNow.getUTCSeconds() < 10) guid += `0${dateNow.getUTCSeconds()}`;
         else guid += dateNow.getUTCSeconds();
         return guid;
     }

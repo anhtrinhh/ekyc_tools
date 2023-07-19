@@ -3,11 +3,14 @@ import { Utils } from './utils';
 import { createDetector, SupportedModels, FaceDetector, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
 
 interface BaseEkycToolOptions {
+    width?: any;
+    height?: any;
+    frameRate?: any;
     ratio?: number,
     enableSwitchCamera?: boolean,
     enableAlert?: boolean,
     enableValidation?: boolean,
-    facingMode?: string
+    facingMode?: ConstrainDOMString
 }
 
 interface CaptureEkycToolOptions extends BaseEkycToolOptions {
@@ -34,9 +37,9 @@ export class EkycTools {
     public static FACE_DETECTION_WARNING_04 = 'Không thể phát hiện khuôn mặt trong vùng chọn!';
     public static CAMERA_NOT_FOUND_WARNING = 'Không thể tìm thấy máy ảnh trên thiết bị của bạn!';
 
-    private mediaStream: (MediaStream | null) = null;
+    private mediaStream: MediaStream | null = null;
     private scanFaceRunning: boolean = false;
-    private currentFacingMode: string = 'environment';
+    private currentFacingMode: ConstrainDOMString | undefined = 'environment';
     private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
         enableSwitchCamera: true,
@@ -150,7 +153,7 @@ export class EkycTools {
                     createDetector(model, detectorConfig).then(detector => {
                         recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container, detector));
                         const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
-                        if(footer) this.enableFooterButtons(footer);
+                        if (footer) this.enableFooterButtons(footer);
                         Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
                     });
                 } else recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container));
@@ -158,10 +161,10 @@ export class EkycTools {
         })
     }
 
-    private async handleClickRecord(evt: Event, 
-        resolve: (value: EkycToolResult | PromiseLike<EkycToolResult | null> | null) => void, 
+    private async handleClickRecord(evt: Event,
+        resolve: (value: EkycToolResult | PromiseLike<EkycToolResult | null> | null) => void,
         reject: (reason?: any) => void,
-        options: RecordEkycToolOptions, 
+        options: RecordEkycToolOptions,
         container: HTMLDivElement,
         faceDetector?: FaceDetector) {
         evt.preventDefault();
@@ -385,12 +388,20 @@ export class EkycTools {
 
         EkycTools.getCameraDevices().then(cameraDevices => {
             const numberOfCameras = cameraDevices.length;
+            let videoConstraints = {
+                width: options.width,
+                height: options.height,
+                frameRate: options.frameRate,
+                ratio: options.ratio,
+                facingMode: options.facingMode
+            };
             if (options.enableSwitchCamera && numberOfCameras > 1) {
                 footer.querySelector('.ekyct-switchcam-btn')?.addEventListener('click', evt => {
                     evt.preventDefault();
                     this.disableFooterButtons(footer);
                     this.toggleFacingMode();
-                    this.insertVideoElement(captureRegion, numberOfCameras, this.currentFacingMode).then(() => {
+                    videoConstraints.facingMode = this.currentFacingMode;
+                    this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints)).then(() => {
                         this.enableFooterButtons(footer);
                     });
                 })
@@ -398,9 +409,9 @@ export class EkycTools {
 
             if (numberOfCameras > 0) {
                 this.disableFooterButtons(footer);
-                this.insertVideoElement(captureRegion, numberOfCameras, options.facingMode).then(() => {
+                this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints)).then(() => {
                     Utils.handleScreen(containerInner);
-                    if(!options.enableValidation) this.enableFooterButtons(footer);
+                    if (!options.enableValidation) this.enableFooterButtons(footer);
                 });
             } else {
                 footer.querySelector('.ekyct-capture-btn')?.remove();
@@ -469,20 +480,34 @@ export class EkycTools {
         return el;
     }
 
-    private async insertVideoElement(parentEl: HTMLDivElement, numberOfCameras: number, desiredFacingMode = 'environment') {
-        if (numberOfCameras > 0) {
-            let facingMode = this.currentFacingMode === desiredFacingMode || numberOfCameras > 1 ? desiredFacingMode : this.currentFacingMode;
-            this.clearMediaStream(this.mediaStream);
-            parentEl.querySelector('.ekyct-video')?.remove();
-            const videoEl = await this.createVideoElement({ facingMode });
-            this.currentFacingMode = facingMode;
-            parentEl.appendChild(videoEl);
-            return {
-                videoWidth: videoEl.clientWidth,
-                videoHeight: videoEl.clientHeight
-            };
-        }
-        return null;
+    private async insertVideoElement(parentEl: HTMLDivElement, videoConstraints: MediaTrackConstraints) {
+        this.clearMediaStream(this.mediaStream);
+        parentEl.querySelector('.ekyct-video')?.remove();
+        const videoEl = await this.createVideoElement(videoConstraints);
+        this.currentFacingMode = videoConstraints.facingMode;
+        parentEl.appendChild(videoEl);
+        return {
+            videoWidth: videoEl.clientWidth,
+            videoHeight: videoEl.clientHeight
+        };
+    }
+
+    private getVideoConstraints(numberOfCameras: number, options: {
+        width?: any;
+        height?: any;
+        frameRate?: any;
+        ratio?: number,
+        facingMode?: ConstrainDOMString
+    }) {
+        let facingMode = this.currentFacingMode === options.facingMode || numberOfCameras > 1 ? options.facingMode : this.currentFacingMode;
+        let constraints: MediaTrackConstraints = {
+            facingMode
+        };
+        if (options.width) constraints.width = options.width;
+        if (options.height) constraints.height = options.height;
+        if (options.frameRate) constraints.frameRate = options.frameRate;
+        // if (typeof options.ratio === 'number' && options.ratio > 0) constraints.aspectRatio = 1 / options.ratio;
+        return constraints;
     }
 
     private closeEkycWindow(container: HTMLDivElement) {

@@ -6,7 +6,8 @@ interface BaseEkycToolOptions {
     width?: any;
     height?: any;
     frameRate?: any;
-    ratio?: number,
+    aspectRatio?: number,
+    shadingRatio?: number,
     enableSwitchCamera?: boolean,
     enableAlert?: boolean,
     enableValidation?: boolean,
@@ -45,7 +46,7 @@ export class EkycTools {
         enableSwitchCamera: true,
         enableAlert: true,
         enableValidation: false,
-        ratio: 0.6,
+        shadingRatio: 0.6,
         facingMode: 'environment'
     };
     private readonly defaultGetVideoOptions: RecordEkycToolOptions = {
@@ -53,7 +54,7 @@ export class EkycTools {
         enableSwitchCamera: true,
         enableValidation: true,
         facingMode: 'user',
-        ratio: 1,
+        shadingRatio: 1,
         recordMs: 6000
     };
 
@@ -85,7 +86,7 @@ export class EkycTools {
                     resolve(rs);
                 });
             }
-            this.handleCapture(container).then(rs => {
+            this.handleCapture(options, container).then(rs => {
                 if (rs) {
                     this.closeEkycWindow(container);
                     resolve(rs);
@@ -140,25 +141,26 @@ export class EkycTools {
     }
 
     private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<EkycToolResult | null> {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             const recordButton = container.querySelector('.ekyct-record-btn');
             if (recordButton) {
+                const promises: Promise<any>[] = [this.setupCamera(container, options)];
                 if (options.enableValidation) {
                     const model = SupportedModels.MediaPipeFaceDetector;
                     const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
                         runtime: 'mediapipe',
                         solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
                     };
-                    Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
-                    createDetector(model, detectorConfig).then(detector => {
-                        recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container, detector));
-                        const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
-                        if (footer) this.enableFooterButtons(footer);
-                        Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
-                    });
-                } else recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container));
+                    promises.push(createDetector(model, detectorConfig));
+                }
+                const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
+                Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
+                const results = await Promise.all(promises);
+                this.enableFooterButtons(footer);
+                recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container, results[1]));
+                Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
             } else reject('Record button not exists!');
-        })
+        });
     }
 
     private async handleClickRecord(evt: Event,
@@ -255,10 +257,14 @@ export class EkycTools {
         }
     }
 
-    private handleCapture(container: HTMLDivElement): Promise<EkycToolResult | null> {
-        return new Promise((resolve, reject) => {
+    private handleCapture(options: CaptureEkycToolOptions, container: HTMLDivElement): Promise<EkycToolResult | null> {
+        return new Promise(async (resolve, reject) => {
             const captureButton = container.querySelector('.ekyct-capture-btn');
             if (captureButton) {
+                const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
+                Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
+                await this.setupCamera(container, options);
+                this.enableFooterButtons(footer);
                 captureButton.addEventListener('click', async evt => {
                     evt.preventDefault();
                     const captureRegionEl = container.querySelector('div.ekyct-capture-region');
@@ -275,6 +281,7 @@ export class EkycTools {
                         else resolve(null);
                     } else reject('Capture region not exists!');
                 });
+                Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
             } else {
                 reject('Capture button not exists!');
             }
@@ -378,79 +385,71 @@ export class EkycTools {
         containerInner.insertAdjacentHTML('beforeend', EkycStyleHTML);
         container.className = 'ekyct-container';
         const captureRegion = document.createElement('div');
-        captureRegion.dataset['ratio'] = options.ratio?.toString();
+        captureRegion.dataset['shadingRatio'] = options.shadingRatio?.toString();
         captureRegion.className = 'ekyct-capture-region';
         const footer = this.createFooter(options);
         containerInner.appendChild(this.createHeader());
         containerInner.appendChild(captureRegion);
         containerInner.appendChild(footer);
         container.appendChild(containerInner);
-
-        EkycTools.getCameraDevices().then(cameraDevices => {
-            const numberOfCameras = cameraDevices.length;
-            let videoConstraints = {
-                width: options.width,
-                height: options.height,
-                frameRate: options.frameRate,
-                ratio: options.ratio,
-                facingMode: options.facingMode
-            };
-            if (options.enableSwitchCamera && numberOfCameras > 1) {
-                footer.querySelector('.ekyct-switchcam-btn')?.addEventListener('click', evt => {
-                    evt.preventDefault();
-                    this.disableFooterButtons(footer);
-                    this.toggleFacingMode();
-                    videoConstraints.facingMode = this.currentFacingMode;
-                    this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints)).then(() => {
-                        this.enableFooterButtons(footer);
-                    });
-                })
-            } else footer.querySelector('.ekyct-switchcam-btn')?.remove();
-
-            if (numberOfCameras > 0) {
-                this.disableFooterButtons(footer);
-                this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints)).then(() => {
-                    Utils.handleScreen(containerInner);
-                    if (!options.enableValidation) this.enableFooterButtons(footer);
-                });
-            } else {
-                footer.querySelector('.ekyct-capture-btn')?.remove();
-                footer.querySelector('.ekyct-record-btn')?.remove();
-                captureRegion.appendChild(this.createNotHasCamElement());
-            }
-        });
-        // screen.orientation.addEventListener('change', this.handleOrientationChange);
-        //window.addEventListener('orientationchange', this.handleOrientationChange);
         return container;
     }
 
+    private async setupCamera(container: HTMLDivElement, options: BaseEkycToolOptions) {
+        const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
+        const captureRegion = container.querySelector('.ekyct-capture-region') as HTMLDivElement;
+        const containerInner = container.querySelector('.ekyct-container--inner') as HTMLDivElement;
+        const cameraDevices = await EkycTools.getCameraDevices();
+        const numberOfCameras = cameraDevices.length;
+        let videoConstraints = {
+            width: options.width,
+            height: options.height,
+            aspectRatio: options.aspectRatio,
+            frameRate: options.frameRate,
+            facingMode: options.facingMode
+        };
+        if (options.enableSwitchCamera && numberOfCameras > 1) {
+            footer.querySelector('.ekyct-switchcam-btn')?.addEventListener('click', evt => {
+                evt.preventDefault();
+                this.disableFooterButtons(footer);
+                this.toggleFacingMode();
+                videoConstraints.facingMode = this.currentFacingMode;
+                this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints)).then(() => {
+                    this.enableFooterButtons(footer);
+                });
+            })
+        } else footer.querySelector('.ekyct-switchcam-btn')?.remove();
+        if (numberOfCameras > 0) {
+            this.disableFooterButtons(footer);
+            await this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints));
+            Utils.handleScreen(containerInner);
+            if (!options.enableValidation) this.enableFooterButtons(footer);
+        } else {
+            footer.querySelector('.ekyct-capture-btn')?.remove();
+            footer.querySelector('.ekyct-record-btn')?.remove();
+            captureRegion.appendChild(this.createNotHasCamElement());
+        }
+    }
+
     private enableFooterButtons(footer: HTMLDivElement) {
-        const switchcamBtn = footer.querySelector('.ekyct-switchcam-btn');
-        const captureBtn = footer.querySelector('.ekyct-capture-btn');
-        const recordBtn = footer.querySelector('.ekyct-record-btn');
-        if (switchcamBtn) {
-            (switchcamBtn as HTMLButtonElement).disabled = false;
-        }
-        if (captureBtn) {
-            (captureBtn as HTMLButtonElement).disabled = false;
-        }
-        if (recordBtn) {
-            (recordBtn as HTMLButtonElement).disabled = false;
+        if (footer) {
+            const switchcamBtn = footer.querySelector('.ekyct-switchcam-btn');
+            const captureBtn = footer.querySelector('.ekyct-capture-btn');
+            const recordBtn = footer.querySelector('.ekyct-record-btn');
+            if (switchcamBtn) (switchcamBtn as HTMLButtonElement).disabled = false;
+            if (captureBtn) (captureBtn as HTMLButtonElement).disabled = false;
+            if (recordBtn) (recordBtn as HTMLButtonElement).disabled = false;
         }
     }
 
     private disableFooterButtons(footer: HTMLDivElement) {
-        const switchcamBtn = footer.querySelector('.ekyct-switchcam-btn');
-        const captureBtn = footer.querySelector('.ekyct-capture-btn');
-        const recordBtn = footer.querySelector('.ekyct-record-btn');
-        if (switchcamBtn) {
-            (switchcamBtn as HTMLButtonElement).disabled = true;
-        }
-        if (captureBtn) {
-            (captureBtn as HTMLButtonElement).disabled = true;
-        }
-        if (recordBtn) {
-            (recordBtn as HTMLButtonElement).disabled = true;
+        if (footer) {
+            const switchcamBtn = footer.querySelector('.ekyct-switchcam-btn');
+            const captureBtn = footer.querySelector('.ekyct-capture-btn');
+            const recordBtn = footer.querySelector('.ekyct-record-btn');
+            if (switchcamBtn) (switchcamBtn as HTMLButtonElement).disabled = true;
+            if (captureBtn) (captureBtn as HTMLButtonElement).disabled = true;
+            if (recordBtn) (recordBtn as HTMLButtonElement).disabled = true;
         }
     }
 
@@ -462,7 +461,10 @@ export class EkycTools {
         if (!options.enableSwitchCamera) options.enableSwitchCamera = false;
         if (!options.enableAlert) options.enableAlert = false;
         if (!options.enableValidation) options.enableValidation = false;
-        if (!options.ratio) options.ratio = 0;
+        if (typeof options.aspectRatio !== 'number'
+            || options.aspectRatio <= 0) options.aspectRatio = 1;
+        if (typeof options.shadingRatio !== 'number'
+            || options.shadingRatio < 0) options.shadingRatio = 0;
         if (!options.facingMode) options.facingMode = 'environment';
     }
 
@@ -496,7 +498,7 @@ export class EkycTools {
         width?: any;
         height?: any;
         frameRate?: any;
-        ratio?: number,
+        aspectRatio?: number,
         facingMode?: ConstrainDOMString
     }) {
         let facingMode = this.currentFacingMode === options.facingMode || numberOfCameras > 1 ? options.facingMode : this.currentFacingMode;
@@ -506,7 +508,7 @@ export class EkycTools {
         if (options.width) constraints.width = options.width;
         if (options.height) constraints.height = options.height;
         if (options.frameRate) constraints.frameRate = options.frameRate;
-        // if (typeof options.ratio === 'number' && options.ratio > 0) constraints.aspectRatio = 1 / options.ratio;
+        if (typeof options.aspectRatio === 'number' && options.aspectRatio > 0) constraints.aspectRatio = options.aspectRatio;
         return constraints;
     }
 

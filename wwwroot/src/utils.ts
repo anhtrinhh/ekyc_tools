@@ -13,7 +13,7 @@ export class Utils {
         if (captureRegionDiv) {
             const captureRegion = captureRegionDiv as HTMLDivElement;
             let ratio = 1;
-            if (captureRegion.dataset['ratio']) ratio = parseFloat(captureRegion.dataset['ratio'])
+            if (captureRegion.dataset['shadingRatio']) ratio = parseFloat(captureRegion.dataset['shadingRatio'])
             this.insertShadingElement(captureRegion, ratio);
             this.insertCanvasElement(captureRegion);
         }

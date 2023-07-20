@@ -38,7 +38,7 @@ export class Utils {
 
     public static insertShadingElement(parent: HTMLDivElement, rate: number) {
         const videoEl = parent.querySelector('.ekyct-video') as HTMLVideoElement;
-        if (videoEl) {
+        if (videoEl && rate > 0) {
             parent.querySelector('.ekyct-shading')?.remove();
             const videoWidth = videoEl.clientWidth;
             const videoHeight = videoEl.clientHeight;

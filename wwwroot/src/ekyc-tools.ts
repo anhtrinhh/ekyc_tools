@@ -460,7 +460,7 @@ export class EkycTools {
         if (!options.enableAlert) options.enableAlert = false;
         if (!options.enableValidation) options.enableValidation = false;
         if (typeof options.aspectRatio !== 'number'
-            || options.aspectRatio <= 0) options.aspectRatio = 1;
+            || options.aspectRatio < 0) options.aspectRatio = 1;
         if (typeof options.shadingRatio !== 'number'
             || options.shadingRatio < 0) options.shadingRatio = 0;
         if (!options.facingMode) options.facingMode = 'environment';

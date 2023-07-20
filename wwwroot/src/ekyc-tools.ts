@@ -414,16 +414,14 @@ export class EkycTools {
                 this.disableFooterButtons(footer);
                 this.toggleFacingMode();
                 videoConstraints.facingMode = this.currentFacingMode;
-                this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints)).then(() => {
-                    this.enableFooterButtons(footer);
-                });
-            })
+                this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints))
+                    .then(() => this.enableFooterButtons(footer));
+            });
         } else footer.querySelector('.ekyct-switchcam-btn')?.remove();
         if (numberOfCameras > 0) {
             this.disableFooterButtons(footer);
             await this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints));
             Utils.handleScreen(containerInner);
-            if (!options.enableValidation) this.enableFooterButtons(footer);
         } else {
             footer.querySelector('.ekyct-capture-btn')?.remove();
             footer.querySelector('.ekyct-record-btn')?.remove();

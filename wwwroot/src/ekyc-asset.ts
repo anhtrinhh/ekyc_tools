@@ -32,6 +32,7 @@ export const EkycStyleHTML = `<style>
 .ekyct-btn:disabled {
     background-color: #2b2d30;
     color: #727275;
+    cursor: default;
 }
 .ekyct-btn svg {
     fill: currentColor;

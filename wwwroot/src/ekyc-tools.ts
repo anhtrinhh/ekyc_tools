@@ -73,7 +73,7 @@ export class EkycTools {
 
     public getImage(options: CaptureEkycToolOptions = {}): Promise<EkycToolResult | null> {
         options = { ...this.defaultGetImageOptions, ...options };
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             const container = this.createBasicLayout(options);
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
                 evt.preventDefault();
@@ -98,7 +98,7 @@ export class EkycTools {
 
     public getVideo(options: RecordEkycToolOptions = {}): Promise<EkycToolResult | null> {
         options = { ...this.defaultGetVideoOptions, ...options };
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             const container = this.createBasicLayout(options);
             container.querySelector('.ekyct-capture-region')?.classList.add('ekyct-hide-shader-border');
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
@@ -339,42 +339,29 @@ export class EkycTools {
     }
 
     private handleScan(captureRegionEl: HTMLDivElement) {
-        const shadingEl = captureRegionEl.querySelector('.ekyct-shading');
-        const videoEl = captureRegionEl.querySelector('.ekyct-video');
-        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
-        if (shadingEl && videoEl && canvasEl) {
-            const videoElement = videoEl as HTMLVideoElement;
-            const shadingElement = shadingEl as HTMLDivElement;
-            const canvasElement = canvasEl as HTMLCanvasElement;
-            const widthRatio = videoElement.videoWidth / videoElement.clientWidth;
-            const heightRatio = videoElement.videoHeight / videoElement.clientHeight;
-            const borderX = parseFloat(shadingElement.style.borderLeftWidth.slice(0, -2));
-            const borderY = parseFloat(shadingElement.style.borderTopWidth.slice(0, -2));
-            const qrRegionWidth = videoElement.clientWidth - borderX * 2;
-            const qrRegionHeight = videoElement.clientHeight - borderY * 2;
+        const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
+        const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
+        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
+        let borderX = 0, borderY = 0;
+        if(shadingEl) {
+            borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
+            borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2));
+        }
+        if (videoEl && canvasEl) {
+            const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
+            const heightRatio = videoEl.videoHeight / videoEl.clientHeight;
+            const qrRegionWidth = videoEl.clientWidth - borderX * 2;
+            const qrRegionHeight = videoEl.clientHeight - borderY * 2;
             const sWidthOffset = qrRegionWidth * widthRatio;
             const sHeightOffset = qrRegionHeight * heightRatio;
             const sxOffset = borderX * widthRatio;
             const syOffset = borderY * heightRatio;
             const contextAttributes: any = { willReadFrequently: true };
-            const context: CanvasRenderingContext2D = (<any>canvasElement).getContext("2d", contextAttributes)!;
+            const context: CanvasRenderingContext2D = (<any>canvasEl).getContext("2d", contextAttributes)!;
             context.canvas.width = qrRegionWidth;
             context.canvas.height = qrRegionHeight;
-            context.drawImage(videoElement, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, qrRegionWidth, qrRegionHeight);
-            // let imageEl = document.getElementById('img-id') as HTMLImageElement;
-            // imageEl.src = canvasElement.toDataURL();
+            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, qrRegionWidth, qrRegionHeight);
         }
-        // scanCallback(captureRegionEl).then(rs => {
-        //     if (rs) {
-        //         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
-        //         if (canvasEl) {
-        //             (canvasEl as HTMLCanvasElement).toBlob(blob => this.latestBlob = blob);
-        //         }
-        //     };
-        //     this.foreverScanTimeout = setTimeout(() => {
-        //         this.foreverScan(captureRegionEl);
-        //     }, 100);
-        // });
     }
 
     private createBasicLayout(options: BaseEkycToolOptions) {

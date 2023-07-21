@@ -12,21 +12,24 @@ export class Utils {
         const captureRegionDiv = container.querySelector('div.ekyct-capture-region');
         if (captureRegionDiv) {
             const captureRegion = captureRegionDiv as HTMLDivElement;
-            let ratio = 1;
-            if (captureRegion.dataset['shadingRatio']) ratio = parseFloat(captureRegion.dataset['shadingRatio'])
+            const ratio = parseFloat(captureRegion.dataset['shadingRatio'] || '0')
             this.insertShadingElement(captureRegion, ratio);
             this.insertCanvasElement(captureRegion);
         }
     }
 
     public static insertCanvasElement(parent: HTMLDivElement) {
-        const shadingEl = parent.querySelector('.ekyct-shading');
+        const shadingEl = parent.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = parent.querySelector('.ekyct-video');
-        if (videoEl && shadingEl) {
+        let borderX = 0, borderY = 0;
+        if(shadingEl) {
+            borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2)) * 2;
+            borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2)) * 2;
+        }
+        if (videoEl) {
             parent.querySelector('.ekyct-canvas')?.remove();
-            const shadingDivEl = shadingEl as HTMLDivElement;
-            const width = videoEl.clientWidth - parseFloat(shadingDivEl.style.borderLeftWidth.slice(0, -2)) * 2;
-            const height = videoEl.clientHeight - parseFloat(shadingDivEl.style.borderTopWidth.slice(0, -2)) * 2;
+            const width = videoEl.clientWidth - borderX;
+            const height = videoEl.clientHeight - borderY;
             const canvasElement = document.createElement('canvas');
             canvasElement.className = 'ekyct-canvas';
             canvasElement.style.width = `${width}px`;

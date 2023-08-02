@@ -186,7 +186,7 @@ export class EkycTools {
             let start = 0;
             const canvasEl = captureRegion.querySelector('canvas.ekyct-canvas') as HTMLCanvasElement;
             if (canvasEl) {
-                let mimeType = options.mimeType && ['video/webm', 'video/mp4'].includes(options.mimeType) ? options.mimeType : 'video/webm';
+                let mimeType = typeof (options.mimeType) === 'string' && ['video/webm', 'video/mp4'].includes(options.mimeType) ? options.mimeType : 'video/webm';
                 let stream = canvasEl.captureStream();
                 let recorder: MediaRecorder | undefined;
                 this.scanFaceRunning = true;
@@ -280,8 +280,8 @@ export class EkycTools {
                     if (captureRegionEl) {
                         const captureRegion = captureRegionEl as HTMLDivElement;
                         this.handleScan(captureRegion);
-                        let mimeType = options.mimeType && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : 'image/png';
-                        let quality = options.quality && options.quality >= 0 && options.quality <= 1 ? options.quality : 0.96;
+                        let mimeType = typeof (options.mimeType) === 'string' && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : 'image/png';
+                        let quality = typeof (options.quality) === 'number' && options.quality >= 0 && options.quality <= 1 ? options.quality : 0.96;
                         let fileExtension = mimeType === 'image/webp' ? '.webp' : mimeType === 'image/jpeg' ? '.jpg' : '.png';
                         const rs = await this.getObjectFromCaptureRegion(captureRegion, mimeType, quality);
                         if (rs) resolve({

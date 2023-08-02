@@ -27,7 +27,7 @@
         async function handleRecord() {
             var tools = new EkycTools();
             var rs = await tools.getVideo();
-            console.log(rs);
+            alert(JSON.stringify(rs));
             if (rs) {
                 const videoEl = document.getElementById('video-id');
                 const url = URL.createObjectURL(rs.blob);
@@ -43,7 +43,7 @@
         async function handleCapture() {
             var tools = new EkycTools();
             var capture = await tools.getImage();
-            console.log(capture);
+            alert(JSON.stringify(capture));
             if (capture) {
                 const img = document.getElementById('img-id');
                 const url = URL.createObjectURL(capture.blob);

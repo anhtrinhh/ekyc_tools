@@ -7,6 +7,7 @@ interface BaseEkycToolOptions {
     height?: any;
     frameRate?: any;
     aspectRatio?: number,
+    canvasRatio?: number,
     shadingRatio?: number,
     enableSwitchCamera?: boolean,
     enableAlert?: boolean,
@@ -51,7 +52,7 @@ export class EkycTools {
         shadingRatio: 0.6,
         facingMode: 'environment',
         mimeType: 'image/png',
-        quality: 0.96
+        quality: 0.99
     };
     private readonly defaultGetVideoOptions: RecordEkycToolOptions = {
         enableAlert: true,
@@ -128,7 +129,7 @@ export class EkycTools {
         fileInput.onchange = () => {
             if (fileInput.files) {
                 const file = fileInput.files[0];
-                const fileExtension = file.name.match(/\.(png|jpg|jpeg)$/i);
+                const fileExtension = file.name.match(/\.(png|jpg|jpeg|webp)$/i);
                 if (fileExtension && fileExtension.length > 0) {
                     callback({
                         blob: file,
@@ -192,10 +193,10 @@ export class EkycTools {
                 this.scanFaceRunning = true;
                 while (this.scanFaceRunning) {
                     try {
-                        this.handleScan(captureRegion);
+                        this.handleScan(captureRegion, options.canvasRatio!);
                         let rs = true;
                         if (options.enableValidation && faceDetector)
-                            rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
+                            rs = await this.handleDetectFace(captureRegion, faceDetector, options.canvasRatio!, options.enableAlert);
                         if (rs) {
                             if (!recorder) {
                                 start = 0;
@@ -279,16 +280,16 @@ export class EkycTools {
                     const captureRegionEl = container.querySelector('div.ekyct-capture-region');
                     if (captureRegionEl) {
                         const captureRegion = captureRegionEl as HTMLDivElement;
-                        this.handleScan(captureRegion);
-                        let mimeType = typeof (options.mimeType) === 'string' && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : 'image/png';
-                        let quality = typeof (options.quality) === 'number' && options.quality >= 0 && options.quality <= 1 ? options.quality : 0.96;
+                        this.handleScan(captureRegion, options.canvasRatio!);
+                        let mimeType = typeof (options.mimeType) === 'string' && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : this.defaultGetImageOptions.mimeType;
+                        let quality = typeof (options.quality) === 'number' && options.quality >= 0 && options.quality <= 1 ? options.quality : this.defaultGetImageOptions.quality;
                         let fileExtension = mimeType === 'image/webp' ? '.webp' : mimeType === 'image/jpeg' ? '.jpg' : '.png';
-                        const rs = await this.getObjectFromCaptureRegion(captureRegion, mimeType, quality);
+                        const rs = await this.getObjectFromCaptureRegion(captureRegion, mimeType!, quality!);
                         if (rs) resolve({
                             blob: rs,
                             contentLength: rs.size,
                             contentName: `${Utils.newGuid()}${fileExtension}`,
-                            contentType: mimeType
+                            contentType: mimeType!
                         });
                         else resolve(null);
                     } else reject('Capture region not exists!');
@@ -316,7 +317,7 @@ export class EkycTools {
         })
     }
 
-    private async handleDetectFace(captureRegionEl: HTMLDivElement, faceDetector: FaceDetector, enableAlert?: boolean) {
+    private async handleDetectFace(captureRegionEl: HTMLDivElement, faceDetector: FaceDetector, canvasRatio: number, enableAlert?: boolean) {
         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas');
         if (canvasEl) {
             const canvasElement = canvasEl as HTMLCanvasElement;
@@ -324,7 +325,7 @@ export class EkycTools {
             if (faces.length === 1) {
                 const face = faces[0];
                 const faceWidth = face.box.width;
-                const canvasWidth = parseFloat(canvasElement.style.width.slice(0, -2));
+                const canvasWidth = parseFloat(canvasElement.style.width.slice(0, -2)) * canvasRatio;
                 const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
                 if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
                     let rs = true;
@@ -350,7 +351,7 @@ export class EkycTools {
         return false;
     }
 
-    private handleScan(captureRegionEl: HTMLDivElement) {
+    private handleScan(captureRegionEl: HTMLDivElement, canvasRatio: number) {
         const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
@@ -370,9 +371,9 @@ export class EkycTools {
             const syOffset = borderY * heightRatio;
             const contextAttributes: any = { willReadFrequently: true };
             const context: CanvasRenderingContext2D = (<any>canvasEl).getContext("2d", contextAttributes)!;
-            context.canvas.width = qrRegionWidth;
-            context.canvas.height = qrRegionHeight;
-            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, qrRegionWidth, qrRegionHeight);
+            context.canvas.width = qrRegionWidth * canvasRatio;
+            context.canvas.height = qrRegionHeight * canvasRatio;
+            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, qrRegionWidth * canvasRatio, qrRegionHeight * canvasRatio);
         }
     }
 
@@ -462,6 +463,8 @@ export class EkycTools {
             || options.aspectRatio < 0) options.aspectRatio = 1;
         if (typeof options.shadingRatio !== 'number'
             || options.shadingRatio < 0) options.shadingRatio = 0;
+        if (typeof options.canvasRatio !== 'number'
+            || options.canvasRatio <= 0) options.canvasRatio = 1;
         if (!options.facingMode) options.facingMode = 'environment';
     }
 

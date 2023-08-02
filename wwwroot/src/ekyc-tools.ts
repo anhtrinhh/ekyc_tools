@@ -11,11 +11,13 @@ interface BaseEkycToolOptions {
     enableSwitchCamera?: boolean,
     enableAlert?: boolean,
     enableValidation?: boolean,
-    facingMode?: ConstrainDOMString
+    facingMode?: ConstrainDOMString,
+    mimeType?: string
 }
 
 interface CaptureEkycToolOptions extends BaseEkycToolOptions {
-    enableFilePicker?: boolean
+    enableFilePicker?: boolean,
+    quality?: number
 }
 
 interface RecordEkycToolOptions extends BaseEkycToolOptions {
@@ -47,7 +49,9 @@ export class EkycTools {
         enableAlert: true,
         enableValidation: false,
         shadingRatio: 0.6,
-        facingMode: 'environment'
+        facingMode: 'environment',
+        mimeType: 'image/png',
+        quality: 0.96
     };
     private readonly defaultGetVideoOptions: RecordEkycToolOptions = {
         enableAlert: true,
@@ -55,7 +59,8 @@ export class EkycTools {
         enableValidation: true,
         facingMode: 'user',
         shadingRatio: 1,
-        recordMs: 6000
+        recordMs: 6000,
+        mimeType: 'video/webm'
     };
 
     public static async getCameraDevices() {
@@ -81,7 +86,7 @@ export class EkycTools {
                 resolve(null);
             });
             if (options.enableFilePicker) {
-                this.handleFilePicker(container, 'image/png,image/jpeg', rs => {
+                this.handleFilePicker(container, 'image/jpeg,image/png,image/webp', rs => {
                     this.closeEkycWindow(container);
                     resolve(rs);
                 });
@@ -181,6 +186,7 @@ export class EkycTools {
             let start = 0;
             const canvasEl = captureRegion.querySelector('canvas.ekyct-canvas') as HTMLCanvasElement;
             if (canvasEl) {
+                let mimeType = options.mimeType && ['video/webm', 'video/mp4'].includes(options.mimeType) ? options.mimeType : 'video/webm';
                 let stream = canvasEl.captureStream();
                 let recorder: MediaRecorder | undefined;
                 this.scanFaceRunning = true;
@@ -196,7 +202,9 @@ export class EkycTools {
                                 duration = 0;
                                 percent = 0;
                                 data = [];
-                                recorder = new MediaRecorder(stream);
+                                recorder = new MediaRecorder(stream, {
+                                    mimeType
+                                });
                                 recorder.ondataavailable = event => data.push(event.data);
                                 recorder.start();
                             }
@@ -231,12 +239,13 @@ export class EkycTools {
                 }
                 this.scanFaceRunning = false;
                 if (data.length > 0) {
-                    const blob = new Blob(data, { type: 'video/webm' });
+                    const blob = new Blob(data, { type: mimeType });
+                    let fileExtension = mimeType === 'video/mp4' ? '.mp4' : '.webm';
                     resolve({
                         blob: blob,
                         contentLength: blob.size,
                         contentType: blob.type,
-                        contentName: `${Utils.newGuid()}.webm`
+                        contentName: `${Utils.newGuid()}${fileExtension}`
                     });
                 }
                 else resolve(null);
@@ -271,12 +280,15 @@ export class EkycTools {
                     if (captureRegionEl) {
                         const captureRegion = captureRegionEl as HTMLDivElement;
                         this.handleScan(captureRegion);
-                        const rs = await this.getObjectFromCaptureRegion(captureRegion);
+                        let mimeType = options.mimeType && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : 'image/png';
+                        let quality = options.quality && options.quality >= 0 && options.quality <= 1 ? options.quality : 0.96;
+                        let fileExtension = mimeType === 'image/webp' ? '.webp' : mimeType === 'image/jpeg' ? '.jpg' : '.png';
+                        const rs = await this.getObjectFromCaptureRegion(captureRegion, mimeType, quality);
                         if (rs) resolve({
                             blob: rs,
                             contentLength: rs.size,
-                            contentName: `${Utils.newGuid()}.png`,
-                            contentType: 'image/png'
+                            contentName: `${Utils.newGuid()}${fileExtension}`,
+                            contentType: mimeType
                         });
                         else resolve(null);
                     } else reject('Capture region not exists!');
@@ -290,17 +302,17 @@ export class EkycTools {
 
 
 
-    private async getObjectFromCaptureRegion(captureRegionEl: HTMLDivElement): Promise<Blob | null> {
+    private async getObjectFromCaptureRegion(captureRegionEl: HTMLDivElement, mimeType: string, quality: number): Promise<Blob | null> {
         const canvasEl = captureRegionEl.querySelector('canvas.ekyct-canvas');
         if (canvasEl) {
-            return await this.getBlobFromCanvas(canvasEl as HTMLCanvasElement);
+            return await this.getBlobFromCanvas(canvasEl as HTMLCanvasElement, mimeType, quality);
         }
         return null;
     }
 
-    private getBlobFromCanvas(canvas: HTMLCanvasElement): Promise<Blob | null> {
+    private getBlobFromCanvas(canvas: HTMLCanvasElement, mimeType: string, quality: number): Promise<Blob | null> {
         return new Promise(resolve => {
-            canvas.toBlob(blob => resolve(blob));
+            canvas.toBlob(blob => resolve(blob), mimeType, quality);
         })
     }
 
@@ -343,7 +355,7 @@ export class EkycTools {
         const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
         let borderX = 0, borderY = 0;
-        if(shadingEl) {
+        if (shadingEl) {
             borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
             borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2));
         }

@@ -22,12 +22,18 @@ export class Utils {
         const shadingEl = parent.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = parent.querySelector('.ekyct-video');
         let borderX = 0, borderY = 0;
-        if(shadingEl) {
+        if (shadingEl) {
             borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2)) * 2;
             borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2)) * 2;
         }
         if (videoEl) {
             parent.querySelector('.ekyct-canvas')?.remove();
+            // const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
+            // const heightRatio = videoEl.videoHeight / videoEl.clientHeight;
+            // const qrRegionWidth = videoEl.clientWidth - borderX;
+            // const qrRegionHeight = videoEl.clientHeight - borderY;
+            // const width = qrRegionWidth * widthRatio;
+            // const height = qrRegionHeight * heightRatio;
             const width = videoEl.clientWidth - borderX;
             const height = videoEl.clientHeight - borderY;
             const canvasElement = document.createElement('canvas');

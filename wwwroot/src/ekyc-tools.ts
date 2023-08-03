@@ -21,7 +21,8 @@ interface CaptureEkycToolOptions extends BaseEkycToolOptions {
 }
 
 interface RecordEkycToolOptions extends BaseEkycToolOptions {
-    recordMs?: number
+    recordMs?: number,
+    videoBitsPerSecond?: number
 }
 
 interface EkycToolResult {
@@ -29,6 +30,10 @@ interface EkycToolResult {
     contentName: string,
     contentType: string,
     contentLength: number
+}
+
+interface EkycRecordResult extends EkycToolResult {
+    posterBlob: Blob | null
 }
 
 type OnBlob = (file: EkycToolResult) => void;
@@ -101,7 +106,7 @@ export class EkycTools {
         })
     }
 
-    public getVideo(options: RecordEkycToolOptions = {}): Promise<EkycToolResult | null> {
+    public getVideo(options: RecordEkycToolOptions = {}): Promise<EkycRecordResult | null> {
         options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise(resolve => {
             const container = this.createBasicLayout(options);
@@ -145,7 +150,7 @@ export class EkycTools {
         });
     }
 
-    private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<EkycToolResult | null> {
+    private handleRecord(options: RecordEkycToolOptions, container: HTMLDivElement): Promise<EkycRecordResult | null> {
         return new Promise(async (resolve, reject) => {
             const recordButton = container.querySelector('.ekyct-record-btn');
             if (recordButton) {
@@ -169,7 +174,7 @@ export class EkycTools {
     }
 
     private async handleClickRecord(evt: Event,
-        resolve: (value: EkycToolResult | PromiseLike<EkycToolResult | null> | null) => void,
+        resolve: (value: EkycRecordResult | PromiseLike<EkycRecordResult | null> | null) => void,
         reject: (reason?: any) => void,
         options: RecordEkycToolOptions,
         container: HTMLDivElement,
@@ -189,6 +194,7 @@ export class EkycTools {
                 let mimeType = typeof (options.mimeType) === 'string' && ['video/webm', 'video/mp4'].includes(options.mimeType) ? options.mimeType : 'video/webm';
                 let stream = canvasEl.captureStream();
                 let recorder: MediaRecorder | undefined;
+                let posterBlob: Blob | null = null;
                 this.scanFaceRunning = true;
                 while (this.scanFaceRunning) {
                     try {
@@ -202,10 +208,22 @@ export class EkycTools {
                                 duration = 0;
                                 percent = 0;
                                 data = [];
-                                recorder = new MediaRecorder(stream, {
-                                    mimeType
-                                });
-                                recorder.ondataavailable = event => data.push(event.data);
+                                try {
+                                    recorder = new MediaRecorder(stream, {
+                                        mimeType,
+                                        videoBitsPerSecond: options.videoBitsPerSecond
+                                    });
+                                } catch (err) {
+                                    console.warn(err);
+                                    recorder = new MediaRecorder(stream, {
+                                        videoBitsPerSecond: options.videoBitsPerSecond
+                                    });
+                                    mimeType = 'video/webm';
+                                }
+                                recorder.ondataavailable = async event => {
+                                    data.push(event.data);
+                                    if (posterBlob == null) posterBlob = await this.getObjectFromCaptureRegion(captureRegion, 'image/png', this.defaultGetImageOptions.quality!);
+                                };
                                 recorder.start();
                             }
                             let nowTimestamp = new Date().getTime();
@@ -243,6 +261,7 @@ export class EkycTools {
                     let fileExtension = mimeType === 'video/mp4' ? '.mp4' : '.webm';
                     resolve({
                         blob: blob,
+                        posterBlob: posterBlob,
                         contentLength: blob.size,
                         contentType: blob.type,
                         contentName: `${Utils.newGuid()}${fileExtension}`
@@ -403,8 +422,7 @@ export class EkycTools {
         const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
         const captureRegion = container.querySelector('.ekyct-capture-region') as HTMLDivElement;
         const containerInner = container.querySelector('.ekyct-container--inner') as HTMLDivElement;
-        const cameraDevices = await EkycTools.getCameraDevices();
-        const numberOfCameras = cameraDevices.length;
+        let numberOfCameras = (await EkycTools.getCameraDevices()).length;
         let videoConstraints = {
             width: options.width,
             height: options.height,
@@ -412,20 +430,23 @@ export class EkycTools {
             frameRate: options.frameRate,
             facingMode: options.facingMode
         };
-        if (options.enableSwitchCamera && numberOfCameras > 1) {
-            footer.querySelector('.ekyct-switchcam-btn')?.addEventListener('click', evt => {
-                evt.preventDefault();
-                this.disableFooterButtons(footer);
-                this.toggleFacingMode();
-                videoConstraints.facingMode = this.currentFacingMode;
-                this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints))
-                    .then(() => this.enableFooterButtons(footer));
-            });
-        } else footer.querySelector('.ekyct-switchcam-btn')?.remove();
         if (numberOfCameras > 0) {
             this.disableFooterButtons(footer);
-            await this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints));
+            await this.insertVideoElement(captureRegion, this.getVideoConstraints(2, videoConstraints));
             Utils.handleScreen(containerInner);
+            numberOfCameras = (await EkycTools.getCameraDevices()).length;
+            const switchCamBtn = footer.querySelector('.ekyct-switchcam-btn');
+            if (options.enableSwitchCamera && numberOfCameras > 1) {
+                switchCamBtn?.classList.remove('ekyct-dnone');
+                switchCamBtn?.addEventListener('click', evt => {
+                    evt.preventDefault();
+                    this.disableFooterButtons(footer);
+                    this.toggleFacingMode();
+                    videoConstraints.facingMode = this.currentFacingMode;
+                    this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints))
+                        .then(() => this.enableFooterButtons(footer));
+                });
+            } else switchCamBtn?.remove();
         } else {
             footer.querySelector('.ekyct-capture-btn')?.remove();
             footer.querySelector('.ekyct-record-btn')?.remove();
@@ -566,7 +587,7 @@ export class EkycTools {
         }
         if (options.enableSwitchCamera) {
             const switchCamButton = document.createElement('button');
-            switchCamButton.className = 'ekyct-btn ekyct-switchcam-btn';
+            switchCamButton.className = 'ekyct-btn ekyct-switchcam-btn ekyct-dnone';
             switchCamButton.innerHTML = EkycSwitchCamSVG;
             footerInner.appendChild(switchCamButton);
         }

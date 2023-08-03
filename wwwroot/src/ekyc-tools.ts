@@ -39,6 +39,7 @@ interface EkycRecordResult extends EkycToolResult {
 type OnBlob = (file: EkycToolResult) => void;
 
 export class EkycTools {
+    public static VERSION = '1.0.0';
     public static FACE_DETECTION_WARNING_01 = 'Vui lòng đưa camera ra xa một chút!';
     public static FACE_DETECTION_WARNING_02 = 'Vui lòng đưa camera lại gần một chút!';
     public static FACE_DETECTION_WARNING_03 = 'Vui lòng đưa khuôn mặt vào giữa vùng chọn!';
@@ -226,7 +227,7 @@ export class EkycTools {
                                 };
                                 recorder.start();
                             }
-                            let nowTimestamp = new Date().getTime();
+                            let nowTimestamp = performance.now();
                             if (start === 0) start = nowTimestamp;
                             duration = nowTimestamp - start;
                             let ratio = duration / recordMs;
@@ -238,6 +239,7 @@ export class EkycTools {
                             percent = 0;
                             data = [];
                             recorder = undefined;
+                            posterBlob = null;
                         }
                         await Utils.delay(10);
                         captureRegionEl.querySelectorAll('.ekyct-circle-region-point').forEach((elm, ix) => {
@@ -407,6 +409,7 @@ export class EkycTools {
         containerInner.className = 'ekyct-container--inner';
         containerInner.insertAdjacentHTML('beforeend', EkycStyleHTML);
         container.className = 'ekyct-container';
+        container.dataset.version = EkycTools.VERSION;
         const captureRegion = document.createElement('div');
         captureRegion.dataset['shadingRatio'] = options.shadingRatio?.toString();
         captureRegion.className = 'ekyct-capture-region';

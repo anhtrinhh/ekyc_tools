@@ -69,11 +69,18 @@ export class EkycTools {
         mimeType: 'video/webm'
     };
 
-    public static async getCameraDevices() {
+    public static async getCameraDevices(timeout = 30000) {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
-            const cameras = devices.filter(function (device) {
-                return device.kind === 'videoinput';
+            const cameras = devices.filter(async function (device) {
+                const isVideoInput = device.kind === 'videoinput';
+                if (isVideoInput) {
+                    const getUserMediaPromise = navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: device.deviceId } } });
+                    const timeoutPromise = Utils.delay(timeout);
+                    const rs = await Promise.any([getUserMediaPromise, timeoutPromise]);
+                    console.log(rs)
+                }
+                return false;
             });
             return cameras;
         } catch (err) {
@@ -199,7 +206,7 @@ export class EkycTools {
                 this.scanFaceRunning = true;
                 while (this.scanFaceRunning) {
                     try {
-                        this.handleScan(captureRegion);
+                        this.handleScan(captureRegion, true);
                         let rs = true;
                         if (options.enableValidation && faceDetector)
                             rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
@@ -349,9 +356,7 @@ export class EkycTools {
                 const face = faces[0];
                 const faceWidth = face.box.width;
                 const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
-                const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
-                const qrRegionWidth = videoEl.clientWidth - borderX * 2;
-                const canvasContextWidth = qrRegionWidth * widthRatio;
+                const canvasContextWidth = videoEl.clientWidth - borderX * 2;
                 if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
                     let rs = true;
                     if (faceWidth < canvasContextWidth * 0.3) {
@@ -376,7 +381,7 @@ export class EkycTools {
         return false;
     }
 
-    private handleScan(captureRegionEl: HTMLDivElement) {
+    private handleScan(captureRegionEl: HTMLDivElement, autoRate = false) {
         const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
@@ -396,9 +401,11 @@ export class EkycTools {
             const syOffset = borderY * heightRatio;
             const contextAttributes: any = { willReadFrequently: true };
             const context: CanvasRenderingContext2D = (<any>canvasEl).getContext("2d", contextAttributes)!;
-            context.canvas.width = sWidthOffset;
-            context.canvas.height = sHeightOffset;
-            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, sWidthOffset, sHeightOffset);
+            let canvasWidth = autoRate ? qrRegionWidth : sWidthOffset;
+            let canvasHeight = autoRate ? qrRegionHeight : sHeightOffset;
+            context.canvas.width = canvasWidth;
+            context.canvas.height = canvasHeight;
+            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, canvasWidth, canvasHeight);
         }
     }
 
@@ -425,19 +432,20 @@ export class EkycTools {
         const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
         const captureRegion = container.querySelector('.ekyct-capture-region') as HTMLDivElement;
         const containerInner = container.querySelector('.ekyct-container--inner') as HTMLDivElement;
-        let numberOfCameras = (await EkycTools.getCameraDevices()).length;
-        let videoConstraints = {
-            width: options.width,
-            height: options.height,
-            aspectRatio: options.aspectRatio,
-            frameRate: options.frameRate,
-            facingMode: options.facingMode
-        };
-        if (numberOfCameras > 0) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            const numberOfCameras = (await EkycTools.getCameraDevices()).length;
+            this.clearMediaStream(stream);
+            let videoConstraints = {
+                width: options.width,
+                height: options.height,
+                aspectRatio: options.aspectRatio,
+                frameRate: options.frameRate,
+                facingMode: options.facingMode
+            };
             this.disableFooterButtons(footer);
             await this.insertVideoElement(captureRegion, this.getVideoConstraints(2, videoConstraints));
             Utils.handleScreen(containerInner);
-            numberOfCameras = (await EkycTools.getCameraDevices()).length;
             const switchCamBtn = footer.querySelector('.ekyct-switchcam-btn');
             if (options.enableSwitchCamera && numberOfCameras > 1) {
                 switchCamBtn?.classList.remove('ekyct-dnone');
@@ -450,10 +458,11 @@ export class EkycTools {
                         .then(() => this.enableFooterButtons(footer));
                 });
             } else switchCamBtn?.remove();
-        } else {
+        } catch (err) {
             footer.querySelector('.ekyct-capture-btn')?.remove();
             footer.querySelector('.ekyct-record-btn')?.remove();
             captureRegion.appendChild(this.createNotHasCamElement());
+            console.error(err);
         }
     }
 

@@ -8,7 +8,8 @@
         "lib": [
             "DOM",
             "ES2017",
-            "ES2018"
+            "ES2018",
+            "ES2021"
         ],
         // ^ Build the transpiled javascript to transpiled/ dir.
         // Flags to ensure code quality.

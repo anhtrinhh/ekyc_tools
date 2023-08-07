@@ -48,14 +48,14 @@ export class EkycTools {
 
     private mediaStream: MediaStream | null = null;
     private scanFaceRunning: boolean = false;
-    private currentFacingMode: ConstrainDOMString | undefined = 'environment';
+    private currentFacingMode: ConstrainDOMString | undefined = { exact: 'environment' };
     private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
         enableSwitchCamera: true,
         enableAlert: true,
         enableValidation: false,
         shadingRatio: 0.6,
-        facingMode: 'environment',
+        facingMode: { exact: 'environment' },
         mimeType: 'image/png',
         quality: 0.99
     };
@@ -63,24 +63,17 @@ export class EkycTools {
         enableAlert: true,
         enableSwitchCamera: true,
         enableValidation: true,
-        facingMode: 'user',
+        facingMode: { exact: 'user' },
         shadingRatio: 1,
         recordMs: 6000,
         mimeType: 'video/webm'
     };
 
-    public static async getCameraDevices(timeout = 30000) {
+    public static async getCameraDevices() {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
-            const cameras = devices.filter(async function (device) {
-                const isVideoInput = device.kind === 'videoinput';
-                if (isVideoInput) {
-                    const getUserMediaPromise = navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: device.deviceId } } });
-                    const timeoutPromise = Utils.delay(timeout);
-                    const rs = await Promise.any([getUserMediaPromise, timeoutPromise]);
-                    console.log(rs)
-                }
-                return false;
+            const cameras = devices.filter(function (device) {
+                return device.kind === 'videoinput';
             });
             return cameras;
         } catch (err) {
@@ -259,7 +252,7 @@ export class EkycTools {
                     }
                     if (recordMs <= duration) {
                         await this.stopMediaRecorder(recorder);
-                        this.clearMediaStream(stream);
+                        Utils.clearMediaStream(stream);
                         await Utils.delay(250);
                         break;
                     }
@@ -434,8 +427,8 @@ export class EkycTools {
         const containerInner = container.querySelector('.ekyct-container--inner') as HTMLDivElement;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            const numberOfCameras = (await EkycTools.getCameraDevices()).length;
-            this.clearMediaStream(stream);
+            const hasBothFrontAndRearCamera = await Utils.checkHasBothFrontAndRearCamera();
+            Utils.clearMediaStream(stream);
             let videoConstraints = {
                 width: options.width,
                 height: options.height,
@@ -444,17 +437,17 @@ export class EkycTools {
                 facingMode: options.facingMode
             };
             this.disableFooterButtons(footer);
-            await this.insertVideoElement(captureRegion, this.getVideoConstraints(2, videoConstraints));
+            await this.insertVideoElement(captureRegion, this.getVideoConstraints(hasBothFrontAndRearCamera, videoConstraints));
             Utils.handleScreen(containerInner);
             const switchCamBtn = footer.querySelector('.ekyct-switchcam-btn');
-            if (options.enableSwitchCamera && numberOfCameras > 1) {
+            if (options.enableSwitchCamera && hasBothFrontAndRearCamera) {
                 switchCamBtn?.classList.remove('ekyct-dnone');
                 switchCamBtn?.addEventListener('click', evt => {
                     evt.preventDefault();
                     this.disableFooterButtons(footer);
                     this.toggleFacingMode();
                     videoConstraints.facingMode = this.currentFacingMode;
-                    this.insertVideoElement(captureRegion, this.getVideoConstraints(numberOfCameras, videoConstraints))
+                    this.insertVideoElement(captureRegion, this.getVideoConstraints(hasBothFrontAndRearCamera, videoConstraints))
                         .then(() => this.enableFooterButtons(footer));
                 });
             } else switchCamBtn?.remove();
@@ -489,7 +482,8 @@ export class EkycTools {
     }
 
     private toggleFacingMode() {
-        this.currentFacingMode = this.currentFacingMode === 'environment' ? 'user' : 'environment';
+        const facingMode = this.currentFacingMode as ConstrainDOMStringParameters;
+        this.currentFacingMode = facingMode.exact === 'environment' ? { exact: 'user' } : { exact: 'environment' };
     }
 
     private validateEkycToolOptions(options: BaseEkycToolOptions) {
@@ -500,7 +494,12 @@ export class EkycTools {
             || options.aspectRatio < 0) options.aspectRatio = 1;
         if (typeof options.shadingRatio !== 'number'
             || options.shadingRatio < 0) options.shadingRatio = 0;
-        if (!options.facingMode) options.facingMode = 'environment';
+        if (Array.isArray(options.facingMode) && options.facingMode.length > 0 && ['environment', 'user'].includes(options.facingMode[0])) options.facingMode = { exact: options.facingMode[0] }
+        else if (typeof options.facingMode === 'object') {
+            const facingModeOption = options.facingMode as ConstrainDOMStringParameters;
+            if (facingModeOption.exact !== 'environment' && facingModeOption.exact !== 'user') options.facingMode = { exact: 'environment' }
+        } else if (options.facingMode === 'environment' || options.facingMode === 'user') options.facingMode = { exact: options.facingMode }
+        else options.facingMode = { exact: 'environment' }
     }
 
     private createNotHasCamElement() {
@@ -518,7 +517,7 @@ export class EkycTools {
     }
 
     private async insertVideoElement(parentEl: HTMLDivElement, videoConstraints: MediaTrackConstraints) {
-        this.clearMediaStream(this.mediaStream);
+        Utils.clearMediaStream(this.mediaStream);
         parentEl.querySelector('.ekyct-video')?.remove();
         const videoEl = await this.createVideoElement(videoConstraints);
         this.currentFacingMode = videoConstraints.facingMode;
@@ -529,17 +528,15 @@ export class EkycTools {
         };
     }
 
-    private getVideoConstraints(numberOfCameras: number, options: {
+    private getVideoConstraints(hasBothFrontAndRearCamera: boolean, options: {
         width?: any;
         height?: any;
         frameRate?: any;
         aspectRatio?: number,
         facingMode?: ConstrainDOMString
     }) {
-        let facingMode = this.currentFacingMode === options.facingMode || numberOfCameras > 1 ? options.facingMode : this.currentFacingMode;
-        let constraints: MediaTrackConstraints = {
-            facingMode
-        };
+        let facingMode = hasBothFrontAndRearCamera ? options.facingMode : undefined;
+        let constraints: MediaTrackConstraints = facingMode ? { facingMode } : {};
         if (options.width) constraints.width = options.width;
         if (options.height) constraints.height = options.height;
         if (options.frameRate) constraints.frameRate = options.frameRate;
@@ -548,18 +545,9 @@ export class EkycTools {
     }
 
     private closeEkycWindow(container: HTMLDivElement) {
-        this.clearMediaStream(this.mediaStream);
+        Utils.clearMediaStream(this.mediaStream);
         this.scanFaceRunning = false;
         if (document.body.contains(container)) document.body.removeChild(container);
-    }
-
-    private clearMediaStream(mediaStream: MediaStream | null) {
-        if (mediaStream) {
-            mediaStream.getTracks().forEach(track => {
-                mediaStream?.removeTrack(track);
-                track.stop();
-            });
-        }
     }
 
     private createHeader() {

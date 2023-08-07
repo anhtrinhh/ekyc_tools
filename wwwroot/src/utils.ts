@@ -265,4 +265,37 @@ export class Utils {
         else guid += dateNow.getUTCSeconds();
         return guid;
     }
+
+    public static async checkSupportFacingMode(facingMode: string) {
+        if (facingMode !== 'environment' && facingMode !== 'user') return false;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    facingMode: {
+                        exact: facingMode
+                    }
+                }
+            });
+            Utils.clearMediaStream(stream);
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    public static async checkHasBothFrontAndRearCamera() {
+        const hasRearCamera = await Utils.checkSupportFacingMode('environment');
+        const hasFrontCamera = await Utils.checkSupportFacingMode('user');
+        return hasRearCamera && hasFrontCamera;
+    }
+
+    public static clearMediaStream(mediaStream: MediaStream | null) {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => {
+                mediaStream?.removeTrack(track);
+                track.stop();
+            });
+        }
+    }
 }

@@ -227,7 +227,7 @@ export class EkycTools {
                                 };
                                 recorder.start();
                             }
-                            let nowTimestamp = performance.now();
+                            let nowTimestamp = (performance || Date).now();
                             if (start === 0) start = nowTimestamp;
                             duration = nowTimestamp - start;
                             let ratio = duration / recordMs;

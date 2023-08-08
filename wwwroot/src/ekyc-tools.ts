@@ -349,8 +349,7 @@ export class EkycTools {
                 const face = faces[0];
                 const faceWidth = face.box.width;
                 const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
-                const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
-                const canvasContextWidth = videoEl.videoWidth - borderX * 2 * widthRatio;
+                const canvasContextWidth = videoEl.clientWidth - borderX * 2;
                 if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
                     let rs = true;
                     if (faceWidth < canvasContextWidth * 0.3) {
@@ -395,8 +394,8 @@ export class EkycTools {
             const syOffset = borderY * heightRatio;
             const contextAttributes: any = { willReadFrequently: true };
             const context: CanvasRenderingContext2D = (<any>canvasEl).getContext("2d", contextAttributes)!;
-            let canvasWidth = autoRate ? videoEl.videoWidth - borderX * 2 * widthRatio : sWidthOffset;
-            let canvasHeight = autoRate ? videoEl.videoHeight - borderY * 2 * heightRatio : sHeightOffset;
+            let canvasWidth = autoRate ? qrRegionWidth : sWidthOffset;
+            let canvasHeight = autoRate ? qrRegionHeight : sHeightOffset;
             context.canvas.width = canvasWidth;
             context.canvas.height = canvasHeight;
             context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, canvasWidth, canvasHeight);

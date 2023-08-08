@@ -26,7 +26,12 @@
         EkycTools.getCameraDevices().then(devices => console.log(devices));
         async function handleRecord() {
             var tools = new EkycTools();
-            var rs = await tools.getVideo();
+            var rs = await tools.getVideo({
+                enableValidation: false,
+                width: { ideal: 1080, max: 1080},
+                height: { ideal: 1080, max: 1080},
+                videoBitsPerSecond: 2500000
+            });
             alert(JSON.stringify(rs));
             if (rs) {
                 const videoEl = document.getElementById('video-id');

@@ -48,14 +48,14 @@ export class EkycTools {
 
     private mediaStream: MediaStream | null = null;
     private scanFaceRunning: boolean = false;
-    private currentFacingMode: ConstrainDOMString | undefined = { exact: 'environment' };
+    private currentFacingMode: ConstrainDOMString | undefined = 'environment';
     private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
         enableSwitchCamera: true,
         enableAlert: true,
         enableValidation: false,
         shadingRatio: 0.6,
-        facingMode: { exact: 'environment' },
+        facingMode: 'environment',
         mimeType: 'image/png',
         quality: 0.99
     };
@@ -63,7 +63,7 @@ export class EkycTools {
         enableAlert: true,
         enableSwitchCamera: true,
         enableValidation: true,
-        facingMode: { exact: 'user' },
+        facingMode: 'user',
         shadingRatio: 1,
         recordMs: 6000,
         mimeType: 'video/webm'
@@ -482,8 +482,7 @@ export class EkycTools {
     }
 
     private toggleFacingMode() {
-        const facingMode = this.currentFacingMode as ConstrainDOMStringParameters;
-        this.currentFacingMode = facingMode.exact === 'environment' ? { exact: 'user' } : { exact: 'environment' };
+        this.currentFacingMode = this.currentFacingMode === 'environment' ? 'user' : 'environment';
     }
 
     private validateEkycToolOptions(options: BaseEkycToolOptions) {
@@ -494,12 +493,12 @@ export class EkycTools {
             || options.aspectRatio < 0) options.aspectRatio = 1;
         if (typeof options.shadingRatio !== 'number'
             || options.shadingRatio < 0) options.shadingRatio = 0;
-        if (Array.isArray(options.facingMode) && options.facingMode.length > 0 && ['environment', 'user'].includes(options.facingMode[0])) options.facingMode = { exact: options.facingMode[0] }
+        if (Array.isArray(options.facingMode) && options.facingMode.length > 0 && ['environment', 'user'].includes(options.facingMode[0])) options.facingMode = options.facingMode[0]
         else if (typeof options.facingMode === 'object') {
             const facingModeOption = options.facingMode as ConstrainDOMStringParameters;
-            if (facingModeOption.exact !== 'environment' && facingModeOption.exact !== 'user') options.facingMode = { exact: 'environment' }
-        } else if (options.facingMode === 'environment' || options.facingMode === 'user') options.facingMode = { exact: options.facingMode }
-        else options.facingMode = { exact: 'environment' }
+            if (facingModeOption.exact !== 'environment' && facingModeOption.exact !== 'user') options.facingMode = 'environment'
+        } else if (options.facingMode === 'environment' || options.facingMode === 'user') options.facingMode = options.facingMode
+        else options.facingMode = 'environment'
     }
 
     private createNotHasCamElement() {

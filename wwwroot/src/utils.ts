@@ -285,9 +285,10 @@ export class Utils {
     }
 
     public static async checkHasBothFrontAndRearCamera() {
-        const hasRearCamera = await Utils.checkSupportFacingMode('environment');
         const hasFrontCamera = await Utils.checkSupportFacingMode('user');
-        return hasRearCamera && hasFrontCamera;
+        const hasRearCamera = await Utils.checkSupportFacingMode('environment');
+        // return hasRearCamera && hasFrontCamera;
+        return hasFrontCamera || hasRearCamera;
     }
 
     public static clearMediaStream(mediaStream: MediaStream | null) {

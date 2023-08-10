@@ -614,6 +614,12 @@ export class EkycTools {
                 video: videoConstraints
             };
             navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+                const [track] = stream.getVideoTracks();
+                const settings = track.getSettings();
+                if ('zoom' in settings) {
+                    const zoomOption = { zoom: 1 } as MediaTrackConstraintSet;
+                    track.applyConstraints({ advanced: [zoomOption] });
+                }
                 this.mediaStream = stream;
                 videoElement.srcObject = stream;
                 videoElement.play();

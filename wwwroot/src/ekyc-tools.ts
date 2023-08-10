@@ -603,7 +603,6 @@ export class EkycTools {
             const videoElement = document.createElement("video");
             videoElement.className = 'ekyct-video';
             videoElement.muted = true;
-            videoElement.setAttribute("muted", "true");
             (<any>videoElement).playsInline = true;
             let onVideoStart = () => {
                 videoElement.removeEventListener("playing", onVideoStart);

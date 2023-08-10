@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .inner {
+            width: 100%;
+            max-width: 768px;
+            margin: 0 auto;
+        }
+        .wrapper {
+            background-color: #000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+        }
+        .wrapper.active {
+            display: block;
+        }
+        .wrapper video {
+            width: 100%;
+        }
+        .header {
+            padding: 20px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="inner">
+            <div class="header">
+                <button id="btn-close">Close</button>
+            </div>
+            <video id="video-test"></video>
+        </div>
+    </div>
+    <div class="control">
+        <div>
+            <textarea rows="20" cols="40" id="textarea-test">
+{
+    "video": {
+        "facingMode": "user",
+        "aspectRatio": 1
+    },
+    "audio": false
+}
+            </textarea>
+        </div>
+        <button id="btn-apply">Apply</button>
+    </div>
+    <script>
+        let mediaStream;
+        document.getElementById('btn-close').addEventListener('click', evt => {
+            evt.preventDefault();
+            clearMediaStream();
+            document.querySelector('.wrapper').classList.remove('active');
+        })
+        document.getElementById('btn-apply').addEventListener('click', evt => {
+            evt.preventDefault();
+            lauchVideo();
+        })
+        function lauchVideo() {
+            const videoEl = document.getElementById('video-test')
+            videoEl.playsInline = true;
+            let onVideoStart = () => {
+                videoEl.removeEventListener("playing", onVideoStart);
+            };
+            videoEl.addEventListener('playing', onVideoStart);
+            let constraints = JSON.parse(document.getElementById('textarea-test').value)
+            navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+                mediaStream = stream;
+                videoEl.srcObject = stream;
+                videoEl.play();
+            });
+            document.querySelector('.wrapper').classList.add('active')
+        }
+        function clearMediaStream() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => {
+                    mediaStream.removeTrack(track);
+                    track.stop();
+                });
+            }
+        }
+    </script>
+</body>
+
+</html>

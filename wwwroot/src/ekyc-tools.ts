@@ -44,7 +44,7 @@ export class EkycTools {
     public static FACE_DETECTION_WARNING_02 = 'Vui lòng đưa camera lại gần một chút!';
     public static FACE_DETECTION_WARNING_03 = 'Vui lòng đưa khuôn mặt vào giữa vùng chọn!';
     public static FACE_DETECTION_WARNING_04 = 'Không thể phát hiện khuôn mặt trong vùng chọn!';
-    public static CAMERA_NOT_FOUND_WARNING = 'Không thể tìm thấy máy ảnh trên thiết bị của bạn!';
+    public static CAMERA_NOT_FOUND_WARNING = 'Không tìm thấy hoặc không thể kết nối với máy ảnh trên thiết bị của bạn!';
 
     private mediaStream: MediaStream | null = null;
     private scanFaceRunning: boolean = false;

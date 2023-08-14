@@ -299,6 +299,7 @@ export class EkycTools {
                     evt.preventDefault();
                     const captureRegionEl = container.querySelector('div.ekyct-capture-region');
                     if (captureRegionEl) {
+                        this.disableFooterButtons(footer);
                         Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
                         const captureRegion = captureRegionEl as HTMLDivElement;
                         this.handleScan(captureRegion);
@@ -314,6 +315,7 @@ export class EkycTools {
                         });
                         else resolve(null);
                         Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
+                        this.enableFooterButtons(footer);
                     } else reject('Capture region not exists!');
                 });
                 Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
@@ -538,31 +540,41 @@ export class EkycTools {
         aspectRatio?: number;
         facingMode?: ConstrainDOMString;
     }) {
-        let facingMode = bothCamCapabilities.hasBoth ? options.facingMode : undefined;
-        let constraints: MediaTrackConstraints = facingMode ? { facingMode } : {};
-        if (options.width) constraints.width = options.width;
-        if (options.height) constraints.height = options.height;
-        if (options.frameRate) constraints.frameRate = options.frameRate;
-        if (typeof options.aspectRatio === 'number' && options.aspectRatio > 0) constraints.aspectRatio = options.aspectRatio;
-        switch(facingMode) {
-            case 'user':
-                if (options.width) {
-                    if(typeof options.width === 'number') {
-                        if(options.width > 0) {
-
-                        }
-                    } else if(typeof options.width === 'object' && 'ideal' in options.width 
-                    && typeof options.width.ideal === 'number') {
-                        if(options.width.ideal > 0) {
-                            
-                        }
-                    }
+        const constraints: MediaTrackConstraints = {};
+        const rearCam = bothCamCapabilities.rearCamCapabilities;
+        const frontCam = bothCamCapabilities.frontCamCapabilities;
+        const { width, height, frameRate, aspectRatio } = options;
+        const facingMode = bothCamCapabilities.hasBoth ? options.facingMode : undefined;
+        if (facingMode) constraints.facingMode = facingMode;
+        const setWidthHeight = (cap: MediaTrackCapabilities, dim: 'width' | 'height', value: any) => {
+            if (cap[dim]) {
+                const max = cap[dim]!.max;
+                if (typeof value === 'number' && value > 0) {
+                    if (max && value >= max) value = max;
+                    constraints[dim] = value;
+                } else if (typeof value === 'object' && 'ideal' in value && typeof value.ideal === 'number' && value.ideal > 0) {
+                    if (max && value.ideal >= max) value.ideal = max;
+                    if (value.max && value.ideal > value.max) value.max = value.ideal;
+                    constraints[dim] = value;
                 }
-                break;
-            case 'environment':
-                break;
-            default:
-                break;
+            }
+        };
+        if (facingMode === 'environment') {
+            if (width) setWidthHeight(rearCam!, 'width', width);
+            if (height) setWidthHeight(rearCam!, 'height', height);
+        } else {
+            if (width) setWidthHeight(frontCam, 'width', width);
+            if (height) setWidthHeight(frontCam, 'height', height);
+        }
+        if (frameRate) constraints.frameRate = frameRate;
+        if (typeof aspectRatio === 'number' && aspectRatio > 0 && constraints.width && constraints.height) {
+            const constraintWidth = constraints.width as any;
+            const constraintHeight = constraints.height as any;
+            let maxWidth = constraintWidth.ideal || constraintWidth;
+            let maxHeight = constraintHeight.ideal || constraintHeight;
+            const [newWidth, newHeight] = Utils.adjustRatio([maxWidth, maxHeight, aspectRatio]);
+            constraints.width = constraintWidth.ideal ? { ...constraintWidth, ideal: newWidth } : newWidth;
+            constraints.height = constraintHeight.ideal ? { ...constraintHeight, ideal: newHeight } : newHeight;
         }
         return constraints;
     }
@@ -601,11 +613,13 @@ export class EkycTools {
             const captureButton = document.createElement('button');
             captureButton.className = 'ekyct-btn ekyct-capture-btn';
             captureButton.innerHTML = EkycCaptureBtnSVG;
+            captureButton.disabled = true;
             footerInner.appendChild(captureButton);
         } else {
             const recordButton = document.createElement('button');
             recordButton.className = 'ekyct-btn ekyct-record-btn';
             recordButton.innerHTML = EkycRecordBtnSVG;
+            recordButton.disabled = true;
             footerInner.appendChild(recordButton);
         }
         if (options.enableSwitchCamera) {

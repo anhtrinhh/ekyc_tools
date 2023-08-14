@@ -336,4 +336,13 @@ export class Utils {
             });
         }
     }
+
+    public static adjustRatio(arr: any[]) {
+        const [x, y, desiredRatio] = arr;
+        const currentRatio = x / y;
+        if (currentRatio === desiredRatio) return [x, y];
+        const newX = Math.min(x, Math.floor(y * desiredRatio));
+        const newY = Math.round(newX / desiredRatio);
+        return [newX, newY];
+    }
 }

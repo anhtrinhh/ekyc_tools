@@ -428,9 +428,7 @@ export class EkycTools {
         const captureRegion = container.querySelector('.ekyct-capture-region') as HTMLDivElement;
         const containerInner = container.querySelector('.ekyct-container--inner') as HTMLDivElement;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            const hasBothFrontAndRearCamera = await Utils.checkHasBothFrontAndRearCamera();
-            Utils.clearMediaStream(stream);
+            const bothCamCapabilities = await Utils.getCapabilitiesBothCam();
             let videoConstraints = {
                 width: options.width,
                 height: options.height,
@@ -439,17 +437,17 @@ export class EkycTools {
                 facingMode: options.facingMode
             };
             this.disableFooterButtons(footer);
-            await this.insertVideoElement(captureRegion, this.getVideoConstraints(hasBothFrontAndRearCamera, videoConstraints));
+            await this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints));
             Utils.handleScreen(containerInner);
             const switchCamBtn = footer.querySelector('.ekyct-switchcam-btn');
-            if (options.enableSwitchCamera && hasBothFrontAndRearCamera) {
+            if (options.enableSwitchCamera && bothCamCapabilities.hasBoth) {
                 switchCamBtn?.classList.remove('ekyct-dnone');
                 switchCamBtn?.addEventListener('click', evt => {
                     evt.preventDefault();
                     this.disableFooterButtons(footer);
                     this.toggleFacingMode();
                     videoConstraints.facingMode = this.currentFacingMode;
-                    this.insertVideoElement(captureRegion, this.getVideoConstraints(hasBothFrontAndRearCamera, videoConstraints))
+                    this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints))
                         .then(() => this.enableFooterButtons(footer));
                 });
             } else switchCamBtn?.remove();
@@ -529,19 +527,43 @@ export class EkycTools {
         };
     }
 
-    private getVideoConstraints(hasBothFrontAndRearCamera: boolean, options: {
+    private getVideoConstraints(bothCamCapabilities: {
+        hasBoth: boolean;
+        frontCamCapabilities: MediaTrackCapabilities;
+        rearCamCapabilities: MediaTrackCapabilities | undefined;
+    }, options: {
         width?: any;
         height?: any;
         frameRate?: any;
-        aspectRatio?: number,
-        facingMode?: ConstrainDOMString
+        aspectRatio?: number;
+        facingMode?: ConstrainDOMString;
     }) {
-        let facingMode = hasBothFrontAndRearCamera ? options.facingMode : undefined;
+        let facingMode = bothCamCapabilities.hasBoth ? options.facingMode : undefined;
         let constraints: MediaTrackConstraints = facingMode ? { facingMode } : {};
         if (options.width) constraints.width = options.width;
         if (options.height) constraints.height = options.height;
         if (options.frameRate) constraints.frameRate = options.frameRate;
         if (typeof options.aspectRatio === 'number' && options.aspectRatio > 0) constraints.aspectRatio = options.aspectRatio;
+        switch(facingMode) {
+            case 'user':
+                if (options.width) {
+                    if(typeof options.width === 'number') {
+                        if(options.width > 0) {
+
+                        }
+                    } else if(typeof options.width === 'object' && 'ideal' in options.width 
+                    && typeof options.width.ideal === 'number') {
+                        if(options.width.ideal > 0) {
+                            
+                        }
+                    }
+                }
+                break;
+            case 'environment':
+                break;
+            default:
+                break;
+        }
         return constraints;
     }
 
@@ -605,7 +627,6 @@ export class EkycTools {
             const videoElement = document.createElement("video");
             videoElement.className = 'ekyct-video';
             videoElement.muted = true;
-            (<any>videoElement).playsInline = true;
             let onVideoStart = () => {
                 videoElement.removeEventListener("playing", onVideoStart);
                 resolve(videoElement);

@@ -266,8 +266,8 @@ export class Utils {
         return guid;
     }
 
-    public static async checkSupportFacingMode(facingMode: string) {
-        if (facingMode !== 'environment' && facingMode !== 'user') return false;
+    public static async getCapabilitiesOfFacingMode(facingMode: string) {
+        if (facingMode !== 'environment' && facingMode !== 'user') return undefined;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
@@ -277,18 +277,55 @@ export class Utils {
                     }
                 }
             });
+            const [track] = stream.getVideoTracks();
+            const capabilities = track.getCapabilities();
             Utils.clearMediaStream(stream);
-            return true;
+            return capabilities;
         } catch (err) {
-            return false;
+            return undefined;
         }
     }
 
-    public static async checkHasBothFrontAndRearCamera() {
-        const hasFrontCamera = await Utils.checkSupportFacingMode('user');
-        const hasRearCamera = await Utils.checkSupportFacingMode('environment');
+    public static async getCapabilitiesBothCam() {
+        let frontCamCapabilities = await Utils.getCapabilitiesOfFacingMode('user');
+        let rearCamCapabilities = await Utils.getCapabilitiesOfFacingMode('environment');
+        const hasBoth = frontCamCapabilities !== undefined || rearCamCapabilities !== undefined;
+        let mediaStream: MediaStream | null = null;
+        if (hasBoth) {
+            if (!frontCamCapabilities) {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        facingMode: 'user'
+                    }
+                });
+                const [track] = mediaStream.getVideoTracks();
+                frontCamCapabilities = track.getCapabilities();
+            } else if (!rearCamCapabilities) {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        facingMode: 'environment'
+                    }
+                });
+                const [track] = mediaStream.getVideoTracks();
+                rearCamCapabilities = track.getCapabilities();
+            }
+        } else {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: true
+            });
+            const [track] = mediaStream.getVideoTracks();
+            frontCamCapabilities = track.getCapabilities();
+        }
+        Utils.clearMediaStream(mediaStream);
+        return {
+            hasBoth,
+            frontCamCapabilities,
+            rearCamCapabilities
+        }
         // return hasRearCamera && hasFrontCamera;
-        return hasFrontCamera || hasRearCamera;
     }
 
     public static clearMediaStream(mediaStream: MediaStream | null) {

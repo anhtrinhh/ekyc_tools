@@ -47,7 +47,11 @@
 
         async function handleCapture() {
             var tools = new EkycTools();
-            var capture = await tools.getImage();
+            var capture = await tools.getImage({
+                width: { ideal: 2180, max: 3120 },
+                height: { ideal: 2180, max: 3120 },
+                aspectRatio: 0
+            });
             alert(JSON.stringify(capture));
             if (capture) {
                 const img = document.getElementById('img-id');

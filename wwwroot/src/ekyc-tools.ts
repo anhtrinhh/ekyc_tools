@@ -299,6 +299,7 @@ export class EkycTools {
                     evt.preventDefault();
                     const captureRegionEl = container.querySelector('div.ekyct-capture-region');
                     if (captureRegionEl) {
+                        Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
                         const captureRegion = captureRegionEl as HTMLDivElement;
                         this.handleScan(captureRegion);
                         let mimeType = typeof (options.mimeType) === 'string' && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : this.defaultGetImageOptions.mimeType;
@@ -312,6 +313,7 @@ export class EkycTools {
                             contentType: mimeType!
                         });
                         else resolve(null);
+                        Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
                     } else reject('Capture region not exists!');
                 });
                 Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));

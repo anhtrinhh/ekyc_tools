@@ -550,10 +550,10 @@ export class EkycTools {
             if (cap[dim]) {
                 const max = cap[dim]!.max;
                 if (typeof value === 'number' && value > 0) {
-                    if (max && value >= max) value = max;
+                    if (max && value > max) value = max;
                     constraints[dim] = value;
                 } else if (typeof value === 'object' && 'ideal' in value && typeof value.ideal === 'number' && value.ideal > 0) {
-                    if (max && value.ideal >= max) value.ideal = max;
+                    if (max && value.ideal > max) value.ideal = max;
                     if (value.max && value.ideal > value.max) value.max = value.ideal;
                     constraints[dim] = value;
                 }

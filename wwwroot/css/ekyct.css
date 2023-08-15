@@ -36,8 +36,7 @@
 }
 
 .ekyct-container--rotate .ekyct-footer,
-.ekyct-container--rotate .ekyct-header,
-.ekyct-container--rotate .ekyct-video {
+.ekyct-container--rotate .ekyct-header {
     width: unset;
     height: 100%
 }
@@ -189,7 +188,7 @@
 
 .ekyct-video {
     width: 100%;
-    display: block;
+    display: block
 }
 
 .ekyct-alert {
@@ -279,12 +278,6 @@
         font-size: 14px
     }
 
-    .ekyct-container--inner {
-        max-width: 576px;
-        left: 50%;
-        transform: translateX(-50%)
-    }
-
     .ekyct-alert {
         padding: 10px 20px
     }
@@ -306,9 +299,6 @@
 }
 
 @media (min-width:992px) {
-    .ekyct-container--inner {
-        max-width: 768px
-    }
 
     .ekyct-loader-content {
         width: 60px;

@@ -39,7 +39,7 @@ interface EkycRecordResult extends EkycToolResult {
 type OnBlob = (file: EkycToolResult) => void;
 
 export class EkycTools {
-    public static VERSION = '1.0.0';
+    public static VERSION = '1.0.1';
     public static FACE_DETECTION_WARNING_01 = 'Vui lòng đưa camera ra xa một chút!';
     public static FACE_DETECTION_WARNING_02 = 'Vui lòng đưa camera lại gần một chút!';
     public static FACE_DETECTION_WARNING_03 = 'Vui lòng đưa khuôn mặt vào giữa vùng chọn!';
@@ -54,7 +54,7 @@ export class EkycTools {
         enableSwitchCamera: true,
         enableAlert: true,
         enableValidation: false,
-        shadingRatio: 0.6,
+        shadingRatio: 1.66666667,
         facingMode: 'environment',
         mimeType: 'image/png',
         quality: 0.99
@@ -348,13 +348,16 @@ export class EkycTools {
         if (videoEl && canvasEl) {
             const faces = await faceDetector.estimateFaces(canvasEl);
             if (faces.length === 1) {
-                let borderX = 0;
-                if (shadingEl) borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
+                let borderX = 0, baseWidth = captureRegionEl.clientWidth;
+                if (shadingEl) {
+                    borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
+                    baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
+                }
                 const face = faces[0];
                 const faceWidth = face.box.width;
                 const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
                 const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
-                const qrRegionWidth = videoEl.clientWidth - borderX * 2;
+                const qrRegionWidth = baseWidth - borderX * 2;
                 let canvasContextWidth = Math.round(qrRegionWidth * widthRatio);
                 /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
                 if (canvasContextWidth % 2 !== 0) canvasContextWidth -= 1;
@@ -386,24 +389,29 @@ export class EkycTools {
         const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
-        let borderX = 0, borderY = 0;
-        if (shadingEl) {
-            borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
-            borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2));
-        }
         if (videoEl && canvasEl) {
+            let borderX = 0, borderY = 0, baseWidth = captureRegionEl.clientWidth,
+                baseHeight = captureRegionEl.clientHeight > videoEl.clientHeight ? videoEl.clientHeight : captureRegionEl.clientHeight;
+            if (shadingEl) {
+                borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
+                borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2));
+                baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
+                baseHeight = parseFloat(shadingEl.style.height.slice(0, -2));
+            }
             const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
             const heightRatio = videoEl.videoHeight / videoEl.clientHeight;
-            const qrRegionWidth = videoEl.clientWidth - borderX * 2;
-            const qrRegionHeight = videoEl.clientHeight - borderY * 2;
+            const qrRegionWidth = baseWidth - borderX * 2;
+            const qrRegionHeight = baseHeight - borderY * 2;
             let sWidthOffset = Math.round(qrRegionWidth * widthRatio);
             let sHeightOffset = Math.round(qrRegionHeight * heightRatio);
             /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
             if (sWidthOffset % 2 !== 0) sWidthOffset -= 1;
             if (sHeightOffset % 2 !== 0) sHeightOffset -= 1;
             /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
+            let offsetY = 0;
+            if (videoEl.clientHeight > baseHeight) offsetY = (videoEl.clientHeight - baseHeight) / 2
             const sxOffset = Math.round(borderX * widthRatio);
-            const syOffset = Math.round(borderY * heightRatio);
+            const syOffset = Math.round((borderY + offsetY) * heightRatio);
             const contextAttributes: any = { willReadFrequently: true };
             const context: CanvasRenderingContext2D = (<any>canvasEl).getContext("2d", contextAttributes)!;
             context.canvas.width = sWidthOffset;
@@ -532,10 +540,6 @@ export class EkycTools {
         const videoEl = await this.createVideoElement(videoConstraints);
         this.currentFacingMode = videoConstraints.facingMode;
         parentEl.appendChild(videoEl);
-        return {
-            videoWidth: videoEl.clientWidth,
-            videoHeight: videoEl.clientHeight
-        };
     }
 
     private getVideoConstraints(bothCamCapabilities: {

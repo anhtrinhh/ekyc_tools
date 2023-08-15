@@ -21,21 +21,18 @@ export class Utils {
     public static insertCanvasElement(parent: HTMLDivElement) {
         const shadingEl = parent.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = parent.querySelector('.ekyct-video');
-        let borderX = 0, borderY = 0;
-        if (shadingEl) {
-            borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2)) * 2;
-            borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2)) * 2;
-        }
         if (videoEl) {
+            let borderX = 0, borderY = 0, baseWidth = parent.clientWidth,
+                baseHeight = parent.clientHeight > videoEl.clientHeight ? videoEl.clientHeight : parent.clientHeight;
+            if (shadingEl) {
+                borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2)) * 2;
+                borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2)) * 2;
+                baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
+                baseHeight = parseFloat(shadingEl.style.height.slice(0, -2));
+            }
             parent.querySelector('.ekyct-canvas')?.remove();
-            // const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
-            // const heightRatio = videoEl.videoHeight / videoEl.clientHeight;
-            // const qrRegionWidth = videoEl.clientWidth - borderX;
-            // const qrRegionHeight = videoEl.clientHeight - borderY;
-            // const width = qrRegionWidth * widthRatio;
-            // const height = qrRegionHeight * heightRatio;
-            const width = videoEl.clientWidth - borderX;
-            const height = videoEl.clientHeight - borderY;
+            const width = baseWidth - borderX;
+            const height = baseHeight - borderY;
             const canvasElement = document.createElement('canvas');
             canvasElement.className = 'ekyct-canvas';
             canvasElement.style.width = `${width}px`;
@@ -49,17 +46,17 @@ export class Utils {
         const videoEl = parent.querySelector('.ekyct-video') as HTMLVideoElement;
         if (videoEl && rate > 0) {
             parent.querySelector('.ekyct-shading')?.remove();
-            const videoWidth = videoEl.clientWidth;
-            const videoHeight = videoEl.clientHeight;
+            let baseWidth = videoEl.clientWidth;
+            let baseHeight = videoEl.clientHeight > parent.clientHeight ? parent.clientHeight : videoEl.clientHeight;
             const shadingElement = document.createElement("div");
             shadingElement.className = 'ekyct-shading';
-            shadingElement.style.width = `${videoWidth}px`;
-            shadingElement.style.height = `${videoHeight}px`;
-            const left = (parent.clientWidth - videoWidth) / 2 + 'px';
-            const top = (parent.clientHeight - videoHeight) / 2 + 'px'
+            shadingElement.style.width = `${baseWidth}px`;
+            shadingElement.style.height = `${baseHeight}px`;
+            const left = (parent.clientWidth - videoEl.clientWidth) / 2 + 'px';
+            const top = (parent.clientHeight - videoEl.clientHeight) / 2 + 'px'
             shadingElement.style.top = top;
             shadingElement.style.left = left;
-            const borderSize = this.getShadingBorderSize(videoEl, rate);
+            const borderSize = this.getShadingBorderSize(baseWidth, baseHeight, rate);
             shadingElement.style.borderLeftWidth = `${borderSize.borderX}px`;
             shadingElement.style.borderRightWidth = `${borderSize.borderX}px`;
             shadingElement.style.borderTopWidth = `${borderSize.borderY}px`;
@@ -103,34 +100,17 @@ export class Utils {
         shaderElem.appendChild(elem);
     }
 
-    public static getShadingBorderSize(videoEl: HTMLVideoElement, rate: number) {
-        let videoWidth = videoEl.clientWidth;
-        let videoHeight = videoEl.clientHeight;
-        let borderX: number, borderY: number;
-        if (videoWidth < 576) {
-            borderX = 16;
-        } else if (videoWidth < 768) {
-            borderX = 32;
-        } else {
-            borderX = 48;
+    public static getShadingBorderSize(baseWidth: number, baseHeight: number, rate: number) {
+        const [width, height] = Utils.adjustExactRatio([baseWidth, baseHeight, rate]);
+        let borderX = (baseWidth - width) / 2;
+        let borderY = (baseHeight - height) / 2;
+        if (borderY < this.shardBorderSmallSize * 3) {
+            borderX += this.shardBorderSmallSize * 3 - borderY;
+            borderY = this.shardBorderSmallSize * 3;
         }
-        let width = videoWidth - 2 * borderX;
-        let height = width * rate;
-        if (height > videoHeight) {
-            height = videoHeight;
-            width = height / rate;
-            borderX = (videoWidth - width) / 2;
-        }
-        borderY = (videoHeight - height) / 2;
-        if (borderX < this.shardBorderSmallSize) {
-            borderX = this.shardBorderSmallSize;
-            width = videoWidth - borderX * 2;
-            borderY = (videoHeight - (width * rate)) / 2;
-        }
-        if (borderY < this.shardBorderSmallSize) {
-            borderY = this.shardBorderSmallSize;
-            height = videoHeight - borderY * 2;
-            borderX = (videoWidth - (height / rate)) / 2;
+        if (borderX < this.shardBorderSmallSize * 3) {
+            borderY += this.shardBorderSmallSize * 3 - borderX;
+            borderX = this.shardBorderSmallSize * 3;
         }
         return {
             borderX,
@@ -343,6 +323,15 @@ export class Utils {
         if (currentRatio === desiredRatio) return [x, y];
         const newX = Math.min(x, Math.floor(y * desiredRatio));
         const newY = Math.round(newX / desiredRatio);
+        return [newX, newY];
+    }
+
+    public static adjustExactRatio(arr: any[]) {
+        const [x, y, desiredRatio] = arr;
+        const currentRatio = x / y;
+        if (currentRatio === desiredRatio) return [x, y];
+        const newX = Math.min(x, y * desiredRatio);
+        const newY = newX / desiredRatio;
         return [newX, newY];
     }
 }

@@ -241,7 +241,7 @@ export class EkycTools {
                             recorder = undefined;
                             posterBlob = null;
                         }
-                        await Utils.delay(20);
+                        await Utils.delay(10);
                         captureRegionEl.querySelectorAll('.ekyct-circle-region-point').forEach((elm, ix) => {
                             if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
                             else elm.classList.remove('ekyct-circle-region-point--marked')

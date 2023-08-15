@@ -456,7 +456,10 @@ export class EkycTools {
                     this.toggleFacingMode();
                     videoConstraints.facingMode = this.currentFacingMode;
                     this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints))
-                        .then(() => this.enableFooterButtons(footer));
+                        .then(() => {
+                            Utils.handleScreen(containerInner);
+                            this.enableFooterButtons(footer)
+                        });
                 });
             } else switchCamBtn?.remove();
         } catch (err) {

@@ -199,7 +199,7 @@ export class EkycTools {
                 this.scanFaceRunning = true;
                 while (this.scanFaceRunning) {
                     try {
-                        this.handleScan(captureRegion, true);
+                        this.handleScan(captureRegion);
                         let rs = true;
                         if (options.enableValidation && faceDetector)
                             rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
@@ -353,7 +353,11 @@ export class EkycTools {
                 const face = faces[0];
                 const faceWidth = face.box.width;
                 const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
-                const canvasContextWidth = videoEl.clientWidth - borderX * 2;
+                const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
+                const qrRegionWidth = videoEl.clientWidth - borderX * 2;
+                let canvasContextWidth = Math.round(qrRegionWidth * widthRatio);
+                /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
+                if (canvasContextWidth % 2 !== 0) canvasContextWidth -= 1;
                 if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
                     let rs = true;
                     if (faceWidth < canvasContextWidth * 0.3) {
@@ -378,7 +382,7 @@ export class EkycTools {
         return false;
     }
 
-    private handleScan(captureRegionEl: HTMLDivElement, autoRate = false) {
+    private handleScan(captureRegionEl: HTMLDivElement) {
         const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
         const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
@@ -392,17 +396,19 @@ export class EkycTools {
             const heightRatio = videoEl.videoHeight / videoEl.clientHeight;
             const qrRegionWidth = videoEl.clientWidth - borderX * 2;
             const qrRegionHeight = videoEl.clientHeight - borderY * 2;
-            const sWidthOffset = qrRegionWidth * widthRatio;
-            const sHeightOffset = qrRegionHeight * heightRatio;
-            const sxOffset = borderX * widthRatio;
-            const syOffset = borderY * heightRatio;
+            let sWidthOffset = Math.round(qrRegionWidth * widthRatio);
+            let sHeightOffset = Math.round(qrRegionHeight * heightRatio);
+            /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
+            if (sWidthOffset % 2 !== 0) sWidthOffset -= 1;
+            if (sHeightOffset % 2 !== 0) sHeightOffset -= 1;
+            /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
+            const sxOffset = Math.round(borderX * widthRatio);
+            const syOffset = Math.round(borderY * heightRatio);
             const contextAttributes: any = { willReadFrequently: true };
             const context: CanvasRenderingContext2D = (<any>canvasEl).getContext("2d", contextAttributes)!;
-            let canvasWidth = autoRate ? qrRegionWidth : sWidthOffset;
-            let canvasHeight = autoRate ? qrRegionHeight : sHeightOffset;
-            context.canvas.width = canvasWidth;
-            context.canvas.height = canvasHeight;
-            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, canvasWidth, canvasHeight);
+            context.canvas.width = sWidthOffset;
+            context.canvas.height = sHeightOffset;
+            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, sWidthOffset, sHeightOffset);
         }
     }
 

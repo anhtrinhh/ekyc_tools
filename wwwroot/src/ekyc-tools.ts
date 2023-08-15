@@ -241,7 +241,7 @@ export class EkycTools {
                             recorder = undefined;
                             posterBlob = null;
                         }
-                        await Utils.delay(10);
+                        await Utils.delay(20);
                         captureRegionEl.querySelectorAll('.ekyct-circle-region-point').forEach((elm, ix) => {
                             if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
                             else elm.classList.remove('ekyct-circle-region-point--marked')
@@ -641,6 +641,8 @@ export class EkycTools {
             const videoElement = document.createElement("video");
             videoElement.className = 'ekyct-video';
             videoElement.muted = true;
+            videoElement.autoplay = true;
+            (<any>videoElement).playsInline = true;
             let onVideoStart = () => {
                 videoElement.removeEventListener("playing", onVideoStart);
                 resolve(videoElement);

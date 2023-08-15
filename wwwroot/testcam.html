@@ -11,6 +11,7 @@
             max-width: 768px;
             margin: 0 auto;
         }
+
         .wrapper {
             background-color: #000;
             position: fixed;
@@ -20,12 +21,15 @@
             bottom: 0;
             display: none;
         }
+
         .wrapper.active {
             display: block;
         }
+
         .wrapper video {
             width: 100%;
         }
+
         .header {
             padding: 20px
         }
@@ -76,6 +80,11 @@
             let constraints = JSON.parse(document.getElementById('textarea-test').value)
             navigator.mediaDevices.getUserMedia(constraints).then(stream => {
                 mediaStream = stream;
+                const [track] = stream.getVideoTracks();
+                const capabilities = track.getCapabilities();
+                const setting = track.getSettings();
+                console.log(capabilities);
+                console.log(setting);
                 videoEl.srcObject = stream;
                 videoEl.play();
             });

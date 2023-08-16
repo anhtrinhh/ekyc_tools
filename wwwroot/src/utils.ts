@@ -1,3 +1,5 @@
+import { createDetector, SupportedModels, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
+
 export class Utils {
     private static insertAlertTimeout: any = null;
     public static shardBorderLargeSize = 40;
@@ -336,11 +338,38 @@ export class Utils {
         return [newX, newY];
     }
 
-    public static requestFullscreen() {
-        try { if (document.fullscreenEnabled) document.documentElement.requestFullscreen().catch(err => console.warn(err)) } catch (err) { console.warn(err) }
+    public static async requestFullscreen() {
+        try { if (document.fullscreenEnabled) await document.documentElement.requestFullscreen() } catch (err) { console.warn(err) }
     }
 
-    public static exitFullscreen() {
-        try { if (document.fullscreenElement != null) document.exitFullscreen().catch(err => console.warn(err)) } catch (err) { console.warn(err) }
+    public static async exitFullscreen() {
+        try { if (document.fullscreenElement != null) await document.exitFullscreen() } catch (err) { console.warn(err) }
+    }
+
+    public static async createFaceDetector() {
+        try {
+            const model = SupportedModels.MediaPipeFaceDetector;
+            const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
+                runtime: 'mediapipe',
+                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
+            };
+            return await createDetector(model, detectorConfig);
+        } catch (err) {
+            console.error(err);
+            return undefined;
+        }
+    }
+
+    private static async getCameraDevices() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(function (device) {
+                return device.kind === 'videoinput';
+            });
+            return cameras;
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
     }
 }

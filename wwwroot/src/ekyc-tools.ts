@@ -1,6 +1,6 @@
 import { EkycCamErrorSVG, EkycCaptureBtnSVG, EkycCloseBtnSVG, EkycFileBtnSVG, EkycRecordBtnSVG, EkycStyleHTML, EkycSwitchCamSVG } from './ekyc-asset';
 import { Utils } from './utils';
-import { createDetector, SupportedModels, FaceDetector, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
+import { FaceDetector } from '@tensorflow-models/face-detection';
 
 interface BaseEkycToolOptions {
     width?: any;
@@ -69,24 +69,12 @@ export class EkycTools {
         mimeType: 'video/webm'
     };
 
-    public static async getCameraDevices() {
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const cameras = devices.filter(function (device) {
-                return device.kind === 'videoinput';
-            });
-            return cameras;
-        } catch (err) {
-            console.error(err);
-            return [];
-        }
-    }
-
     public getImage(options: CaptureEkycToolOptions = {}): Promise<EkycToolResult | null> {
-        Utils.requestFullscreen();
+        // await Utils.requestFullscreen();
         options = { ...this.defaultGetImageOptions, ...options };
         return new Promise(resolve => {
             const container = this.createBasicLayout(options);
+            document.body.appendChild(container);
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
                 evt.preventDefault();
                 this.closeEkycWindow(container);
@@ -104,15 +92,15 @@ export class EkycTools {
                     resolve(rs);
                 }
             });
-            document.body.appendChild(container);
         })
     }
 
     public getVideo(options: RecordEkycToolOptions = {}): Promise<EkycRecordResult | null> {
-        Utils.requestFullscreen();
+        // await Utils.requestFullscreen();
         options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise(resolve => {
             const container = this.createBasicLayout(options);
+            document.body.appendChild(container);
             container.querySelector('.ekyct-capture-region')?.classList.add('ekyct-hide-shader-border');
             container.querySelector('.ekyct-close-btn')?.addEventListener('click', evt => {
                 evt.preventDefault();
@@ -125,7 +113,6 @@ export class EkycTools {
                     resolve(rs);
                 }
             });
-            document.body.appendChild(container);
         })
     }
 
@@ -158,18 +145,10 @@ export class EkycTools {
             const recordButton = container.querySelector('.ekyct-record-btn');
             if (recordButton) {
                 const promises: Promise<any>[] = [this.setupCamera(container, options)];
-                if (options.enableValidation) {
-                    const model = SupportedModels.MediaPipeFaceDetector;
-                    const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
-                        runtime: 'mediapipe',
-                        solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
-                    };
-                    promises.push(createDetector(model, detectorConfig));
-                }
-                const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
+                if (options.enableValidation) promises.push(Utils.createFaceDetector());
                 Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
                 const results = await Promise.all(promises);
-                this.enableFooterButtons(footer);
+                this.toggleDisabledButtons(container, false);
                 recordButton.addEventListener('click', async evt => await this.handleClickRecord(evt, resolve, reject, options, container, results[1]));
                 Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
             } else reject('Record button not exists!');
@@ -184,7 +163,7 @@ export class EkycTools {
         faceDetector?: FaceDetector) {
         evt.preventDefault();
         const recordMs = options.recordMs || 6000;
-        this.disableFooterButtons(container.querySelector('.ekyct-footer') as HTMLDivElement);
+        this.toggleDisabledButtons(container);
         const captureRegionEl = container.querySelector('div.ekyct-capture-region');
         if (captureRegionEl) {
             let data: BlobPart[] = [];
@@ -203,8 +182,7 @@ export class EkycTools {
                     try {
                         this.handleScan(captureRegion);
                         let rs = true;
-                        if (options.enableValidation && faceDetector)
-                            rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
+                        if (options.enableValidation && faceDetector) rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
                         if (rs) {
                             if (!recorder) {
                                 start = 0;
@@ -293,15 +271,14 @@ export class EkycTools {
         return new Promise(async (resolve, reject) => {
             const captureButton = container.querySelector('.ekyct-capture-btn');
             if (captureButton) {
-                const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
                 Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
                 await this.setupCamera(container, options);
-                this.enableFooterButtons(footer);
+                this.toggleDisabledButtons(container, false);
                 captureButton.addEventListener('click', async evt => {
                     evt.preventDefault();
                     const captureRegionEl = container.querySelector('div.ekyct-capture-region');
                     if (captureRegionEl) {
-                        this.disableFooterButtons(footer);
+                        this.toggleDisabledButtons(container);
                         Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
                         const captureRegion = captureRegionEl as HTMLDivElement;
                         this.handleScan(captureRegion);
@@ -317,7 +294,7 @@ export class EkycTools {
                         });
                         else resolve(null);
                         Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
-                        this.enableFooterButtons(footer);
+                        this.toggleDisabledButtons(container, false);
                     } else reject('Capture region not exists!');
                 });
                 Utils.toggleLoaderOnCaptureRegion(false, container.querySelector('.ekyct-capture-region'));
@@ -445,7 +422,6 @@ export class EkycTools {
     }
 
     private async setupCamera(container: HTMLDivElement, options: BaseEkycToolOptions) {
-        const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
         const captureRegion = container.querySelector('.ekyct-capture-region') as HTMLDivElement;
         try {
             const bothCamCapabilities = await Utils.getCapabilitiesBothCam();
@@ -456,51 +432,44 @@ export class EkycTools {
                 frameRate: options.frameRate,
                 facingMode: options.facingMode
             };
-            this.disableFooterButtons(footer);
+            this.toggleDisabledButtons(container);
             await this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints));
             Utils.handleScreen(captureRegion);
-            const switchCamBtn = footer.querySelector('.ekyct-switchcam-btn');
+            const switchCamBtn = container.querySelector('.ekyct-switchcam-btn');
             if (options.enableSwitchCamera && bothCamCapabilities.hasBoth) {
                 switchCamBtn?.classList.remove('ekyct-dnone');
                 switchCamBtn?.addEventListener('click', evt => {
                     evt.preventDefault();
-                    this.disableFooterButtons(footer);
+                    this.toggleDisabledButtons(container);
                     this.toggleFacingMode();
                     videoConstraints.facingMode = this.currentFacingMode;
                     this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints))
                         .then(() => {
                             Utils.handleScreen(captureRegion);
-                            this.enableFooterButtons(footer)
+                            this.toggleDisabledButtons(container, false)
                         });
                 });
             } else switchCamBtn?.remove();
         } catch (err) {
-            footer.querySelector('.ekyct-capture-btn')?.remove();
-            footer.querySelector('.ekyct-record-btn')?.remove();
+            container.querySelector('.ekyct-capture-btn')?.remove();
+            container.querySelector('.ekyct-record-btn')?.remove();
             captureRegion.appendChild(this.createNotHasCamElement());
             console.error(err);
         }
     }
 
-    private enableFooterButtons(footer: HTMLDivElement) {
-        if (footer) {
-            const switchcamBtn = footer.querySelector('.ekyct-switchcam-btn');
-            const captureBtn = footer.querySelector('.ekyct-capture-btn');
-            const recordBtn = footer.querySelector('.ekyct-record-btn');
-            if (switchcamBtn) (switchcamBtn as HTMLButtonElement).disabled = false;
-            if (captureBtn) (captureBtn as HTMLButtonElement).disabled = false;
-            if (recordBtn) (recordBtn as HTMLButtonElement).disabled = false;
-        }
-    }
-
-    private disableFooterButtons(footer: HTMLDivElement) {
-        if (footer) {
-            const switchcamBtn = footer.querySelector('.ekyct-switchcam-btn');
-            const captureBtn = footer.querySelector('.ekyct-capture-btn');
-            const recordBtn = footer.querySelector('.ekyct-record-btn');
-            if (switchcamBtn) (switchcamBtn as HTMLButtonElement).disabled = true;
-            if (captureBtn) (captureBtn as HTMLButtonElement).disabled = true;
-            if (recordBtn) (recordBtn as HTMLButtonElement).disabled = true;
+    private toggleDisabledButtons(container: HTMLDivElement, disabled = true) {
+        if (container) {
+            const switchcamBtn = container.querySelector('.ekyct-switchcam-btn');
+            const captureBtn = container.querySelector('.ekyct-capture-btn');
+            const recordBtn = container.querySelector('.ekyct-record-btn');
+            const filePickerBtn = container.querySelector('.ekyct-filepicker-btn');
+            const closeBtn = container.querySelector('.ekyct-close-btn');
+            if (switchcamBtn) (switchcamBtn as HTMLButtonElement).disabled = disabled;
+            if (captureBtn) (captureBtn as HTMLButtonElement).disabled = disabled;
+            if (recordBtn) (recordBtn as HTMLButtonElement).disabled = disabled;
+            if (filePickerBtn) (filePickerBtn as HTMLButtonElement).disabled = disabled;
+            if (closeBtn) (closeBtn as HTMLButtonElement).disabled = disabled;
         }
     }
 
@@ -597,10 +566,10 @@ export class EkycTools {
     }
 
     private closeEkycWindow(container: HTMLDivElement) {
+        // await Utils.exitFullscreen();
         Utils.clearMediaStream(this.mediaStream);
         this.scanFaceRunning = false;
         if (document.body.contains(container)) document.body.removeChild(container);
-        Utils.exitFullscreen();
     }
 
     private createHeader() {
@@ -610,6 +579,7 @@ export class EkycTools {
         headerInner.className = 'ekyct-header--inner';
         const closeButton = document.createElement('button');
         closeButton.className = 'ekyct-btn ekyct-close-btn';
+        closeButton.disabled = true;
         closeButton.innerHTML = EkycCloseBtnSVG;
         headerInner.appendChild(closeButton);
         header.appendChild(headerInner);
@@ -625,6 +595,7 @@ export class EkycTools {
             const fileButton = document.createElement('button');
             fileButton.className = 'ekyct-btn ekyct-filepicker-btn';
             fileButton.innerHTML = EkycFileBtnSVG;
+            fileButton.disabled = true;
             footerInner.appendChild(fileButton);
         }
         if (this.instanceOfCaptureEkycToolOptions(options)) {
@@ -644,6 +615,7 @@ export class EkycTools {
             const switchCamButton = document.createElement('button');
             switchCamButton.className = 'ekyct-btn ekyct-switchcam-btn ekyct-dnone';
             switchCamButton.innerHTML = EkycSwitchCamSVG;
+            switchCamButton.disabled = true;
             footerInner.appendChild(switchCamButton);
         }
         footer.appendChild(footerInner);
@@ -659,7 +631,6 @@ export class EkycTools {
             const videoElement = document.createElement("video");
             videoElement.className = 'ekyct-video';
             videoElement.muted = true;
-            videoElement.autoplay = true;
             (<any>videoElement).playsInline = true;
             let onVideoStart = () => {
                 videoElement.removeEventListener("playing", onVideoStart);

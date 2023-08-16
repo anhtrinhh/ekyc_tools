@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="./dist/ekyc-tools.min.js"></script>
+    <script src="./minified/ekyc-tools-v1.0.0.min.js"></script>
     <style>
         h1 {
             margin: 0;
@@ -23,6 +23,7 @@
     <button onclick="handleCapture()">Take photo</button>
     <button onclick="handleRecord()">Take video</button>
     <script>
+        EkycTools.getCameraDevices().then(devices => console.log(devices));
         async function handleRecord() {
             var tools = new EkycTools();
             var rs = await tools.getVideo({

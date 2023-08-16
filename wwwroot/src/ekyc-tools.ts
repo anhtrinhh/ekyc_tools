@@ -83,6 +83,7 @@ export class EkycTools {
     }
 
     public getImage(options: CaptureEkycToolOptions = {}): Promise<EkycToolResult | null> {
+        Utils.requestFullscreen();
         options = { ...this.defaultGetImageOptions, ...options };
         return new Promise(resolve => {
             const container = this.createBasicLayout(options);
@@ -108,6 +109,7 @@ export class EkycTools {
     }
 
     public getVideo(options: RecordEkycToolOptions = {}): Promise<EkycRecordResult | null> {
+        Utils.requestFullscreen();
         options = { ...this.defaultGetVideoOptions, ...options };
         return new Promise(resolve => {
             const container = this.createBasicLayout(options);
@@ -432,8 +434,11 @@ export class EkycTools {
         captureRegion.dataset['shadingRatio'] = options.shadingRatio?.toString();
         captureRegion.className = 'ekyct-capture-region';
         const footer = this.createFooter(options);
+        const body = document.createElement('div');
+        body.className = 'ekyct-body';
+        body.appendChild(captureRegion);
         containerInner.appendChild(this.createHeader());
-        containerInner.appendChild(captureRegion);
+        containerInner.appendChild(body);
         containerInner.appendChild(footer);
         container.appendChild(containerInner);
         return container;
@@ -442,7 +447,6 @@ export class EkycTools {
     private async setupCamera(container: HTMLDivElement, options: BaseEkycToolOptions) {
         const footer = container.querySelector('.ekyct-footer') as HTMLDivElement;
         const captureRegion = container.querySelector('.ekyct-capture-region') as HTMLDivElement;
-        const containerInner = container.querySelector('.ekyct-container--inner') as HTMLDivElement;
         try {
             const bothCamCapabilities = await Utils.getCapabilitiesBothCam();
             let videoConstraints = {
@@ -454,7 +458,7 @@ export class EkycTools {
             };
             this.disableFooterButtons(footer);
             await this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints));
-            Utils.handleScreen(containerInner);
+            Utils.handleScreen(captureRegion);
             const switchCamBtn = footer.querySelector('.ekyct-switchcam-btn');
             if (options.enableSwitchCamera && bothCamCapabilities.hasBoth) {
                 switchCamBtn?.classList.remove('ekyct-dnone');
@@ -465,7 +469,7 @@ export class EkycTools {
                     videoConstraints.facingMode = this.currentFacingMode;
                     this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints))
                         .then(() => {
-                            Utils.handleScreen(containerInner);
+                            Utils.handleScreen(captureRegion);
                             this.enableFooterButtons(footer)
                         });
                 });
@@ -596,6 +600,7 @@ export class EkycTools {
         Utils.clearMediaStream(this.mediaStream);
         this.scanFaceRunning = false;
         if (document.body.contains(container)) document.body.removeChild(container);
+        Utils.exitFullscreen();
     }
 
     private createHeader() {
@@ -666,12 +671,12 @@ export class EkycTools {
                 video: videoConstraints
             };
             navigator.mediaDevices.getUserMedia(constraints).then(stream => {
-                const [track] = stream.getVideoTracks();
-                const settings = track.getSettings();
-                if ('zoom' in settings) {
-                    const zoomOption = { zoom: 1 } as MediaTrackConstraintSet;
-                    track.applyConstraints({ advanced: [zoomOption] });
-                }
+                // const [track] = stream.getVideoTracks();
+                // const settings = track.getSettings();
+                // if ('zoom' in settings) {
+                //     const zoomOption = { zoom: 1 } as MediaTrackConstraintSet;
+                //     track.applyConstraints({ advanced: [zoomOption] });
+                // }
                 this.mediaStream = stream;
                 videoElement.srcObject = stream;
                 videoElement.play();

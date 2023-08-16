@@ -2,23 +2,24 @@ export class Utils {
     private static insertAlertTimeout: any = null;
     public static shardBorderLargeSize = 40;
     public static shardBorderSmallSize = 5;
-    public static handleScreen(containerInnerEl: Element) {
-        const container = containerInnerEl as HTMLDivElement;
-        if (container.clientWidth >= container.clientHeight) {
-            container.classList.add('ekyct-container--rotate');
-        } else {
-            container.classList.remove('ekyct-container--rotate');
-        }
-        const captureRegionDiv = container.querySelector('div.ekyct-capture-region');
-        if (captureRegionDiv) {
-            const captureRegion = captureRegionDiv as HTMLDivElement;
+    public static handleScreen(captureRegion: HTMLDivElement) {
+        const container = captureRegion.closest('.ekyct-container--inner') as HTMLDivElement;
+        if (container.clientWidth >= container.clientHeight) container.classList.add('ekyct-container--rotate');
+        else container.classList.remove('ekyct-container--rotate');
+        if (captureRegion) {
             const ratio = parseFloat(captureRegion.dataset['shadingRatio'] || '0')
-            this.insertShadingElement(captureRegion, ratio);
+            const shardingEl = this.insertShadingElement(captureRegion, ratio);
             this.insertCanvasElement(captureRegion);
+            if (shardingEl) {
+                const header = container.querySelector('.ekyct-header') as HTMLDivElement;
+                const shadingElHeight = parseFloat(shardingEl.style.height.slice(0, -2))
+                if (header && container.classList.contains('ekyct-container--rotate')) header.style.height = `${shadingElHeight}px`;
+                else header.style.height = 'unset';
+            }
         }
     }
 
-    public static insertCanvasElement(parent: HTMLDivElement) {
+    private static insertCanvasElement(parent: HTMLDivElement) {
         const shadingEl = parent.querySelector('.ekyct-shading') as HTMLDivElement;
         const videoEl = parent.querySelector('.ekyct-video');
         if (videoEl) {
@@ -39,10 +40,12 @@ export class Utils {
             canvasElement.style.height = `${height}px`;
             canvasElement.style.display = "none";
             parent.appendChild(canvasElement);
+            return canvasElement;
         }
+        return null;
     }
 
-    public static insertShadingElement(parent: HTMLDivElement, rate: number) {
+    private static insertShadingElement(parent: HTMLDivElement, rate: number) {
         const videoEl = parent.querySelector('.ekyct-video') as HTMLVideoElement;
         if (videoEl && rate > 0) {
             parent.querySelector('.ekyct-shading')?.remove();
@@ -52,10 +55,6 @@ export class Utils {
             shadingElement.className = 'ekyct-shading';
             shadingElement.style.width = `${baseWidth}px`;
             shadingElement.style.height = `${baseHeight}px`;
-            const left = (parent.clientWidth - videoEl.clientWidth) / 2 + 'px';
-            const top = (parent.clientHeight - videoEl.clientHeight) / 2 + 'px'
-            shadingElement.style.top = top;
-            shadingElement.style.left = left;
             const borderSize = this.getShadingBorderSize(baseWidth, baseHeight, rate);
             shadingElement.style.borderLeftWidth = `${borderSize.borderX}px`;
             shadingElement.style.borderRightWidth = `${borderSize.borderX}px`;
@@ -71,10 +70,12 @@ export class Utils {
             this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, false);
             this.insertCircleRegion(shadingElement);
             parent.appendChild(shadingElement);
+            return shadingElement;
         }
+        return null;
     }
 
-    public static insertShaderBorders(
+    private static insertShaderBorders(
         shaderElem: HTMLDivElement,
         width: number,
         height: number,
@@ -100,7 +101,7 @@ export class Utils {
         shaderElem.appendChild(elem);
     }
 
-    public static getShadingBorderSize(baseWidth: number, baseHeight: number, rate: number) {
+    private static getShadingBorderSize(baseWidth: number, baseHeight: number, rate: number) {
         const [width, height] = Utils.adjustExactRatio([baseWidth, baseHeight, rate]);
         let borderX = (baseWidth - width) / 2;
         let borderY = (baseHeight - height) / 2;
@@ -333,5 +334,13 @@ export class Utils {
         const newX = Math.min(x, y * desiredRatio);
         const newY = newX / desiredRatio;
         return [newX, newY];
+    }
+
+    public static requestFullscreen() {
+        try { if (document.fullscreenEnabled) document.documentElement.requestFullscreen().catch(err => console.warn(err)) } catch (err) { console.warn(err) }
+    }
+
+    public static exitFullscreen() {
+        try { if (document.fullscreenElement != null) document.exitFullscreen().catch(err => console.warn(err)) } catch (err) { console.warn(err) }
     }
 }

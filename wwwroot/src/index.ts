@@ -8,8 +8,8 @@
 import { Utils } from './utils';
 
 window.addEventListener('resize', () => {
-    document.querySelectorAll('div.ekyct-container--inner').forEach(elm => {
-        Utils.handleScreen(elm);
+    document.querySelectorAll('div.ekyct-capture-region').forEach(elm => {
+        Utils.handleScreen(elm as HTMLDivElement);
     });
 })
 

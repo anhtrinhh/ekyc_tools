@@ -23,12 +23,26 @@
     <button onclick="handleCapture()">Take photo</button>
     <button onclick="handleRecord()">Take video</button>
     <script>
+        let deviceIds = 'null'
+        EkycTools.getAvailableCameraDevices().then(devices => {
+            if (devices.length > 0) {
+                deviceIds = '';
+                devices.forEach(device => {
+                    deviceIds += `${device.deviceId}, `
+                });
+            }
+            alert(`Number of available devices: ${devices.length}, Device ids: ${deviceIds}`)
+        });
         async function handleRecord() {
             var tools = new EkycTools();
             var rs = await tools.getVideo({
-                width: { ideal: 720, max: 1080},
-                height: { ideal: 720, max: 1080},
-                videoBitsPerSecond: 2500000
+                width: { ideal: 720, max: 1080 },
+                height: { ideal: 720, max: 1080 },
+                videoBitsPerSecond: 2500000,
+                enableValidation: true,
+                enableAlert: true,
+                enableValidation: false,
+                maxCanvasRatio: 0
             });
             alert(JSON.stringify(rs));
             if (rs) {
@@ -46,9 +60,9 @@
         async function handleCapture() {
             var tools = new EkycTools();
             var capture = await tools.getImage({
-                width: { ideal: 2180, max: 3120 },
-                height: { ideal: 2180, max: 3120 },
-                aspectRatio: 0
+                width: { ideal: 5120, max: 7680 },
+                height: { ideal: 5120, max: 7680 },
+                maxCanvasRatio: 2
             });
             alert(JSON.stringify(capture));
             if (capture) {

@@ -6,30 +6,31 @@ interface BaseEkycToolOptions {
     width?: any;
     height?: any;
     frameRate?: any;
-    aspectRatio?: number,
-    shadingRatio?: number,
-    enableSwitchCamera?: boolean,
-    enableAlert?: boolean,
-    enableValidation?: boolean,
-    facingMode?: ConstrainDOMString,
-    mimeType?: string
+    aspectRatio?: number;
+    shadingRatio?: number;
+    enableSwitchCamera?: boolean;
+    enableAlert?: boolean;
+    enableValidation?: boolean;
+    facingMode?: ConstrainDOMString;
+    mimeType?: string;
+    maxCanvasRatio?: number;
 }
 
 interface CaptureEkycToolOptions extends BaseEkycToolOptions {
-    enableFilePicker?: boolean,
-    quality?: number
+    enableFilePicker?: boolean;
+    quality?: number;
 }
 
 interface RecordEkycToolOptions extends BaseEkycToolOptions {
-    recordMs?: number,
-    videoBitsPerSecond?: number
+    recordMs?: number;
+    videoBitsPerSecond?: number;
 }
 
 interface EkycToolResult {
-    blob: Blob | null,
-    contentName: string,
-    contentType: string,
-    contentLength: number
+    blob: Blob | null;
+    contentName: string;
+    contentType: string;
+    contentLength: number;
 }
 
 interface EkycRecordResult extends EkycToolResult {
@@ -44,6 +45,7 @@ export class EkycTools {
     public static FACE_DETECTION_WARNING_02 = 'Vui lòng đưa camera lại gần một chút!';
     public static FACE_DETECTION_WARNING_03 = 'Vui lòng đưa khuôn mặt vào giữa vùng chọn!';
     public static FACE_DETECTION_WARNING_04 = 'Không thể phát hiện khuôn mặt trong vùng chọn!';
+    public static FACE_DETECTION_WARNING_05 = 'Có nhiều hơn khuôn mặt trong video!';
     public static CAMERA_NOT_FOUND_WARNING = 'Không tìm thấy hoặc không thể kết nối với máy ảnh trên thiết bị của bạn!';
 
     private mediaStream: MediaStream | null = null;
@@ -68,6 +70,42 @@ export class EkycTools {
         recordMs: 6000,
         mimeType: 'video/webm'
     };
+
+    public static async getAvailableCameraDevices() {
+        const cameraDevices = await this.getCameraDevices();
+        const devicesReady = [];
+        for (let i = 0; i < cameraDevices.length; i++) {
+            const device = cameraDevices[i];
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: device.deviceId },
+                    audio: false
+                });
+                Utils.clearMediaStream(stream);
+                devicesReady.push(device);
+            } catch (err) {
+                console.warn(err);
+            }
+        }
+        return devicesReady;
+    }
+
+    public static createFaceDetector() {
+        return Utils.createFaceDetector();
+    }
+
+    public static async getCameraDevices() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(function (device) {
+                return device.kind === 'videoinput';
+            });
+            return cameras;
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    }
 
     public getImage(options: CaptureEkycToolOptions = {}): Promise<EkycToolResult | null> {
         // await Utils.requestFullscreen();
@@ -164,25 +202,42 @@ export class EkycTools {
         evt.preventDefault();
         const recordMs = options.recordMs || 6000;
         this.toggleDisabledButtons(container);
-        const captureRegionEl = container.querySelector('div.ekyct-capture-region');
+        const captureRegionEl = container.querySelector('div.ekyct-capture-region') as HTMLDivElement;
         if (captureRegionEl) {
             let data: BlobPart[] = [];
-            const captureRegion = captureRegionEl as HTMLDivElement;
             let percent = 0;
             let duration = 0;
             let start = 0;
-            const canvasEl = captureRegion.querySelector('canvas.ekyct-canvas') as HTMLCanvasElement;
-            if (canvasEl) {
+            const elements = Utils.getInnerElementsInCaptureDiv(captureRegionEl)
+            if (elements.canvasEl) {
                 let mimeType = typeof (options.mimeType) === 'string' && ['video/webm', 'video/mp4'].includes(options.mimeType) ? options.mimeType : 'video/webm';
-                let stream = canvasEl.captureStream();
+                let stream = elements.canvasEl.captureStream();
                 let recorder: MediaRecorder | undefined;
                 let posterBlob: Blob | null = null;
                 this.scanFaceRunning = true;
+                let canvasContextWidth = Utils.getCanvasContextWidth(elements.videoEl, elements.shadingEl, captureRegionEl.clientWidth, options.maxCanvasRatio);
+                const contextAttributes: any = { willReadFrequently: true };
+                const canvasContext: CanvasRenderingContext2D = (<any>elements.canvasEl).getContext("2d", contextAttributes)!;
+                const scanParams = {
+                    captureRegionEl,
+                    canvasContext,
+                    videoEl: elements.videoEl,
+                    shadingEl: elements.shadingEl,
+                    canvasContextWidth: canvasContextWidth,
+                    ...Utils.getVideoRatios(elements.videoEl, options.maxCanvasRatio)
+                }
+                const faceDetectionParams = {
+                    captureRegionEl,
+                    canvasEl: elements.canvasEl,
+                    videoEl: elements.videoEl,
+                    canvasContextWidth: canvasContextWidth
+                }
+                const circleRegionPoints = captureRegionEl.querySelectorAll('.ekyct-circle-region-point');
                 while (this.scanFaceRunning) {
                     try {
-                        this.handleScan(captureRegion);
+                        this.handleScan(scanParams)
                         let rs = true;
-                        if (options.enableValidation && faceDetector) rs = await this.handleDetectFace(captureRegion, faceDetector, options.enableAlert);
+                        if (options.enableValidation && faceDetector) rs = await this.handleDetectFace(faceDetectionParams, faceDetector, options.enableAlert);
                         if (rs) {
                             if (!recorder) {
                                 start = 0;
@@ -203,7 +258,7 @@ export class EkycTools {
                                 }
                                 recorder.ondataavailable = async event => {
                                     data.push(event.data);
-                                    if (posterBlob == null) posterBlob = await this.getObjectFromCaptureRegion(captureRegion, 'image/png', this.defaultGetImageOptions.quality!);
+                                    if (posterBlob == null) posterBlob = await this.getObjectFromCaptureRegion(elements.canvasEl, 'image/png', this.defaultGetImageOptions.quality!);
                                 };
                                 recorder.start();
                             }
@@ -222,7 +277,7 @@ export class EkycTools {
                             posterBlob = null;
                         }
                         await Utils.delay(10);
-                        captureRegionEl.querySelectorAll('.ekyct-circle-region-point').forEach((elm, ix) => {
+                        circleRegionPoints.forEach((elm, ix) => {
                             if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
                             else elm.classList.remove('ekyct-circle-region-point--marked')
                         });
@@ -233,6 +288,7 @@ export class EkycTools {
                     if (recordMs <= duration) {
                         await this.stopMediaRecorder(recorder);
                         Utils.clearMediaStream(stream);
+                        if (faceDetector) faceDetector.dispose();
                         await Utils.delay(250);
                         break;
                     }
@@ -276,16 +332,27 @@ export class EkycTools {
                 this.toggleDisabledButtons(container, false);
                 captureButton.addEventListener('click', async evt => {
                     evt.preventDefault();
-                    const captureRegionEl = container.querySelector('div.ekyct-capture-region');
+                    const captureRegionEl = container.querySelector('div.ekyct-capture-region') as HTMLDivElement;
                     if (captureRegionEl) {
+                        const elements = Utils.getInnerElementsInCaptureDiv(captureRegionEl);
+                        let canvasContextWidth = Utils.getCanvasContextWidth(elements.videoEl, elements.shadingEl, captureRegionEl.clientWidth, options.maxCanvasRatio);
+                        const contextAttributes: any = { willReadFrequently: true };
+                        const canvasContext: CanvasRenderingContext2D = (<any>elements.canvasEl).getContext("2d", contextAttributes)!;
+                        const scanParams = {
+                            captureRegionEl,
+                            canvasContext,
+                            videoEl: elements.videoEl,
+                            shadingEl: elements.shadingEl,
+                            canvasContextWidth: canvasContextWidth,
+                            ...Utils.getVideoRatios(elements.videoEl, options.maxCanvasRatio)
+                        }
                         this.toggleDisabledButtons(container);
                         Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
-                        const captureRegion = captureRegionEl as HTMLDivElement;
-                        this.handleScan(captureRegion);
+                        this.handleScan(scanParams);
                         let mimeType = typeof (options.mimeType) === 'string' && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : this.defaultGetImageOptions.mimeType;
                         let quality = typeof (options.quality) === 'number' && options.quality >= 0 && options.quality <= 1 ? options.quality : this.defaultGetImageOptions.quality;
                         let fileExtension = mimeType === 'image/webp' ? '.webp' : mimeType === 'image/jpeg' ? '.jpg' : '.png';
-                        const rs = await this.getObjectFromCaptureRegion(captureRegion, mimeType!, quality!);
+                        const rs = await this.getObjectFromCaptureRegion(elements.canvasEl, mimeType!, quality!);
                         if (rs) resolve({
                             blob: rs,
                             contentLength: rs.size,
@@ -306,8 +373,7 @@ export class EkycTools {
 
 
 
-    private async getObjectFromCaptureRegion(captureRegionEl: HTMLDivElement, mimeType: string, quality: number): Promise<Blob | null> {
-        const canvasEl = captureRegionEl.querySelector('canvas.ekyct-canvas');
+    private async getObjectFromCaptureRegion(canvasEl: HTMLCanvasElement, mimeType: string, quality: number): Promise<Blob | null> {
         if (canvasEl) {
             return await this.getBlobFromCanvas(canvasEl as HTMLCanvasElement, mimeType, quality);
         }
@@ -320,83 +386,84 @@ export class EkycTools {
         })
     }
 
-    private async handleDetectFace(captureRegionEl: HTMLDivElement, faceDetector: FaceDetector, enableAlert?: boolean) {
-        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
-        const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
-        const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
-        if (videoEl && canvasEl) {
-            const faces = await faceDetector.estimateFaces(canvasEl);
+    private async handleDetectFace(parameters: {
+        captureRegionEl: HTMLDivElement;
+        canvasEl: HTMLCanvasElement;
+        videoEl: HTMLVideoElement;
+        canvasContextWidth: number;
+    }, faceDetector: FaceDetector, enableAlert?: boolean) {
+        if (parameters.videoEl && parameters.canvasEl) {
+            const faces = await faceDetector.estimateFaces(parameters.canvasEl);
             if (faces.length === 1) {
-                let borderX = 0, baseWidth = captureRegionEl.clientWidth;
-                if (shadingEl) {
-                    borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
-                    baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
-                }
                 const face = faces[0];
                 const faceWidth = face.box.width;
                 const noseTipKeypoint = face.keypoints.find(kp => kp.name === 'noseTip');
-                const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
-                const qrRegionWidth = baseWidth - borderX * 2;
-                let canvasContextWidth = Math.round(qrRegionWidth * widthRatio);
-                /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
-                if (canvasContextWidth % 2 !== 0) canvasContextWidth -= 1;
                 if (noseTipKeypoint && noseTipKeypoint.x && noseTipKeypoint.y) {
                     let rs = true;
-                    if (faceWidth < canvasContextWidth * 0.3) {
+                    if (faceWidth < parameters.canvasContextWidth * 0.3) {
                         rs = false;
-                        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02);
+                        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02);
                     }
-                    if (faceWidth > canvasContextWidth * 0.6) {
+                    if (faceWidth > parameters.canvasContextWidth * 0.6) {
                         rs = false;
-                        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01);
+                        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01);
                     }
-                    if (noseTipKeypoint.y < canvasContextWidth * 0.35 || noseTipKeypoint.y > canvasContextWidth * 0.65
-                        || noseTipKeypoint.x < canvasContextWidth * 0.35 || noseTipKeypoint.x > canvasContextWidth * 0.65) {
+                    if (noseTipKeypoint.y < parameters.canvasContextWidth * 0.35 || noseTipKeypoint.y > parameters.canvasContextWidth * 0.65
+                        || noseTipKeypoint.x < parameters.canvasContextWidth * 0.35 || noseTipKeypoint.x > parameters.canvasContextWidth * 0.65) {
                         rs = false;
-                        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_03);
+                        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_03);
                     }
-                    if (rs && enableAlert) Utils.cleanAlert(captureRegionEl);
+                    if (rs && enableAlert) Utils.cleanAlert(parameters.captureRegionEl);
                     return rs;
                 }
+            } else if (faces.length > 1 && enableAlert) {
+                Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_05);
+                return false;
             }
         }
-        if (enableAlert) Utils.insertAlert(captureRegionEl, EkycTools.FACE_DETECTION_WARNING_04);
+        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_04);
         return false;
     }
 
-    private handleScan(captureRegionEl: HTMLDivElement) {
-        const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
-        const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
-        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
-        if (videoEl && canvasEl) {
-            let borderX = 0, borderY = 0, baseWidth = captureRegionEl.clientWidth,
-                baseHeight = captureRegionEl.clientHeight > videoEl.clientHeight ? videoEl.clientHeight : captureRegionEl.clientHeight;
-            if (shadingEl) {
-                borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
-                borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2));
-                baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
-                baseHeight = parseFloat(shadingEl.style.height.slice(0, -2));
-            }
-            const widthRatio = videoEl.videoWidth / videoEl.clientWidth;
-            const heightRatio = videoEl.videoHeight / videoEl.clientHeight;
-            const qrRegionWidth = baseWidth - borderX * 2;
-            const qrRegionHeight = baseHeight - borderY * 2;
-            let sWidthOffset = Math.round(qrRegionWidth * widthRatio);
-            let sHeightOffset = Math.round(qrRegionHeight * heightRatio);
-            /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
-            if (sWidthOffset % 2 !== 0) sWidthOffset -= 1;
-            if (sHeightOffset % 2 !== 0) sHeightOffset -= 1;
-            /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
-            let offsetY = 0;
-            if (videoEl.clientHeight > baseHeight) offsetY = (videoEl.clientHeight - baseHeight) / 2
-            const sxOffset = Math.round(borderX * widthRatio);
-            const syOffset = Math.round((borderY + offsetY) * heightRatio);
-            const contextAttributes: any = { willReadFrequently: true };
-            const context: CanvasRenderingContext2D = (<any>canvasEl).getContext("2d", contextAttributes)!;
-            context.canvas.width = sWidthOffset;
-            context.canvas.height = sHeightOffset;
-            context.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, sWidthOffset, sHeightOffset);
+    private handleScan(parameters: {
+        captureRegionEl: HTMLDivElement;
+        videoEl: HTMLVideoElement;
+        shadingEl: HTMLDivElement;
+        canvasContextWidth: number;
+        originWidthRatio: number;
+        originHeightRatio: number;
+        newWidthRatio: number;
+        newHeightRatio: number;
+        canvasContext: CanvasRenderingContext2D;
+    }) {
+        const { videoEl, captureRegionEl, shadingEl, originWidthRatio, originHeightRatio, newWidthRatio, newHeightRatio, canvasContext } = parameters;
+        let borderX = 0, borderY = 0, baseWidth = captureRegionEl.clientWidth,
+            baseHeight = Utils.getCaptureRegionHeight(captureRegionEl);
+        if (shadingEl) {
+            borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
+            borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2));
+            baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
+            baseHeight = parseFloat(shadingEl.style.height.slice(0, -2));
         }
+        const qrRegionWidth = baseWidth - borderX * 2;
+        const qrRegionHeight = baseHeight - borderY * 2;
+        let sWidthOffset = Math.round(qrRegionWidth * originWidthRatio);
+        let sHeightOffset = Math.round(qrRegionHeight * originHeightRatio);
+        /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
+        if (sWidthOffset % 2 !== 0) sWidthOffset -= 1;
+        if (sHeightOffset % 2 !== 0) sHeightOffset -= 1;
+        /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
+        let offsetY = 0;
+        if (videoEl.clientHeight > baseHeight) offsetY = (videoEl.clientHeight - baseHeight) / 2
+        const sxOffset = Math.round(borderX * originWidthRatio);
+        const syOffset = Math.round((borderY + offsetY) * originHeightRatio);
+        let canvasWidth = Math.round(qrRegionWidth * newWidthRatio);
+        let canvasHeight = Math.round(qrRegionHeight * newHeightRatio);
+        if (canvasWidth % 2 !== 0) canvasWidth -= 1;
+        if (canvasHeight % 2 !== 0) canvasHeight -= 1;
+        canvasContext.canvas.width = canvasWidth;
+        canvasContext.canvas.height = canvasHeight;
+        canvasContext.drawImage(videoEl, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, canvasWidth, canvasHeight);
     }
 
     private createBasicLayout(options: BaseEkycToolOptions) {

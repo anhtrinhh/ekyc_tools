@@ -26,7 +26,7 @@ export class Utils {
         const videoEl = parent.querySelector('.ekyct-video');
         if (videoEl) {
             let borderX = 0, borderY = 0, baseWidth = parent.clientWidth,
-                baseHeight = parent.clientHeight > videoEl.clientHeight ? videoEl.clientHeight : parent.clientHeight;
+                baseHeight = this.getCaptureRegionHeight(parent);
             if (shadingEl) {
                 borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2)) * 2;
                 borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2)) * 2;
@@ -52,7 +52,7 @@ export class Utils {
         if (videoEl && rate > 0) {
             parent.querySelector('.ekyct-shading')?.remove();
             let baseWidth = videoEl.clientWidth;
-            let baseHeight = videoEl.clientHeight > parent.clientHeight ? parent.clientHeight : videoEl.clientHeight;
+            let baseHeight = this.getCaptureRegionHeight(parent);
             const shadingElement = document.createElement("div");
             shadingElement.className = 'ekyct-shading';
             shadingElement.style.width = `${baseWidth}px`;
@@ -346,6 +346,41 @@ export class Utils {
         try { if (document.fullscreenElement != null) await document.exitFullscreen() } catch (err) { console.warn(err) }
     }
 
+    public static getVideoRatios(videoEl: HTMLVideoElement, maxRatio?: number) {
+        const originWidthRatio = videoEl.videoWidth / videoEl.clientWidth;
+        const originHeightRatio = videoEl.videoHeight / videoEl.clientHeight;
+        let newWidthRatio = originWidthRatio;
+        let newHeightRatio = originHeightRatio;
+        if (typeof maxRatio === 'number' && maxRatio > 0) {
+            if (originWidthRatio >= originHeightRatio) {
+                if (originWidthRatio > maxRatio) {
+                    const ratio = originWidthRatio / originHeightRatio;
+                    newWidthRatio = maxRatio;
+                    newHeightRatio = maxRatio / ratio;
+                }
+            } else {
+                if (originHeightRatio > maxRatio) {
+                    const ratio = originHeightRatio / originWidthRatio;
+                    newHeightRatio = maxRatio;
+                    newWidthRatio = maxRatio / ratio;
+                }
+            }
+        }
+        return { originWidthRatio, originHeightRatio, newWidthRatio, newHeightRatio };
+    }
+
+    public static getCaptureRegionHeight(captureRegionEl: HTMLDivElement) {
+        const container = captureRegionEl.closest('.ekyct-container--inner') as HTMLDivElement;
+        const videoEl = captureRegionEl.querySelector('.ekyct-video');
+        let headerAndFooterHeight = 180;
+        if (container.classList.contains('ekyct-container--rotate')) headerAndFooterHeight = 0;
+        let baseHeight = window.innerHeight - headerAndFooterHeight;
+        if (videoEl) {
+            if (baseHeight > videoEl.clientHeight) baseHeight = videoEl.clientHeight;
+        }
+        return baseHeight;
+    }
+
     public static async createFaceDetector() {
         try {
             const model = SupportedModels.MediaPipeFaceDetector;
@@ -360,16 +395,28 @@ export class Utils {
         }
     }
 
-    private static async getCameraDevices() {
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const cameras = devices.filter(function (device) {
-                return device.kind === 'videoinput';
-            });
-            return cameras;
-        } catch (err) {
-            console.error(err);
-            return [];
+    public static getCanvasContextWidth(videoEl: HTMLVideoElement, shadingEl: HTMLDivElement, captureRegionWidth: number, maxCanvasRatio?: number) {
+        let borderX = 0, baseWidth = captureRegionWidth;
+        if (shadingEl) {
+            borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
+            baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
+        }
+        const { newWidthRatio } = Utils.getVideoRatios(videoEl, maxCanvasRatio);
+        const qrRegionWidth = baseWidth - borderX * 2;
+        let canvasContextWidth = Math.round(qrRegionWidth * newWidthRatio);
+        /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
+        if (canvasContextWidth % 2 !== 0) canvasContextWidth -= 1;
+        return canvasContextWidth;
+    }
+
+    public static getInnerElementsInCaptureDiv(captureRegionEl: HTMLDivElement) {
+        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
+        const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
+        const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
+        return {
+            canvasEl,
+            videoEl,
+            shadingEl
         }
     }
 }

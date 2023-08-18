@@ -39,6 +39,25 @@ interface EkycRecordResult extends EkycToolResult {
 
 type OnBlob = (file: EkycToolResult) => void;
 
+interface ScanParameters {
+    captureRegionEl: HTMLDivElement;
+    videoEl: HTMLVideoElement;
+    shadingEl: HTMLDivElement;
+    canvasContextWidth: number;
+    originWidthRatio: number;
+    originHeightRatio: number;
+    newWidthRatio: number;
+    newHeightRatio: number;
+    canvasContext: CanvasRenderingContext2D;
+}
+
+interface FaceDetectionParameters {
+    captureRegionEl: HTMLDivElement;
+    canvasEl: HTMLCanvasElement;
+    videoEl: HTMLVideoElement;
+    canvasContextWidth: number;
+}
+
 export class EkycTools {
     public static VERSION = '1.0.1';
     public static FACE_DETECTION_WARNING_01 = 'Vui lòng đưa camera ra xa một chút!';
@@ -49,7 +68,6 @@ export class EkycTools {
     public static CAMERA_NOT_FOUND_WARNING = 'Không tìm thấy hoặc không thể kết nối với máy ảnh trên thiết bị của bạn!';
 
     private mediaStream: MediaStream | null = null;
-    private scanFaceRunning: boolean = false;
     private currentFacingMode: ConstrainDOMString | undefined = 'environment';
     private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
@@ -204,18 +222,12 @@ export class EkycTools {
         this.toggleDisabledButtons(container);
         const captureRegionEl = container.querySelector('div.ekyct-capture-region') as HTMLDivElement;
         if (captureRegionEl) {
-            let data: BlobPart[] = [];
-            let percent = 0;
-            let duration = 0;
-            let start = 0;
             const elements = Utils.getInnerElementsInCaptureDiv(captureRegionEl)
             if (elements.canvasEl) {
-                let mimeType = typeof (options.mimeType) === 'string' && ['video/webm', 'video/mp4'].includes(options.mimeType) ? options.mimeType : 'video/webm';
-                let stream = elements.canvasEl.captureStream();
-                let recorder: MediaRecorder | undefined;
                 let posterBlob: Blob | null = null;
-                this.scanFaceRunning = true;
-                let canvasContextWidth = Utils.getCanvasContextWidth(elements.videoEl, elements.shadingEl, captureRegionEl.clientWidth, options.maxCanvasRatio);
+                let mimeType = typeof (options.mimeType) === 'string' && ['video/webm', 'video/mp4'].includes(options.mimeType) ? options.mimeType : 'video/webm';
+                const stream = elements.canvasEl.captureStream();
+                const canvasContextWidth = Utils.getCanvasContextWidth(elements.videoEl, elements.shadingEl, captureRegionEl.clientWidth, options.maxCanvasRatio);
                 const contextAttributes: any = { willReadFrequently: true };
                 const canvasContext: CanvasRenderingContext2D = (<any>elements.canvasEl).getContext("2d", contextAttributes)!;
                 const scanParams = {
@@ -233,79 +245,97 @@ export class EkycTools {
                     canvasContextWidth: canvasContextWidth
                 }
                 const circleRegionPoints = captureRegionEl.querySelectorAll('.ekyct-circle-region-point');
-                while (this.scanFaceRunning) {
-                    try {
-                        this.handleScan(scanParams)
-                        let rs = true;
-                        if (options.enableValidation && faceDetector) rs = await this.handleDetectFace(faceDetectionParams, faceDetector, options.enableAlert);
-                        if (rs) {
-                            if (!recorder) {
-                                start = 0;
-                                duration = 0;
-                                percent = 0;
-                                data = [];
-                                try {
-                                    recorder = new MediaRecorder(stream, {
-                                        mimeType,
-                                        videoBitsPerSecond: options.videoBitsPerSecond
-                                    });
-                                } catch (err) {
-                                    console.warn(err);
-                                    recorder = new MediaRecorder(stream, {
-                                        videoBitsPerSecond: options.videoBitsPerSecond
-                                    });
-                                    mimeType = 'video/webm';
-                                }
-                                recorder.ondataavailable = async event => {
-                                    data.push(event.data);
-                                    if (posterBlob == null) posterBlob = await this.getObjectFromCaptureRegion(elements.canvasEl, 'image/png', this.defaultGetImageOptions.quality!);
-                                };
-                                recorder.start();
-                            }
-                            let nowTimestamp = (performance || Date).now();
-                            if (start === 0) start = nowTimestamp;
-                            duration = nowTimestamp - start;
+                const panelUpdateMilliseconds = 1000;
+                let data: BlobPart[] = [];
+                let startInferenceTime, endInferenceTime, rafId = 0, percent = 0, numInferences = 0, inferenceTimeSum = 0, lastPanelUpdate = 0, prevStart = 0, start = 0, pause = 0, duration = 0;
+                let recorder: MediaRecorder;
+                try {
+                    recorder = new MediaRecorder(stream, {
+                        mimeType,
+                        videoBitsPerSecond: options.videoBitsPerSecond
+                    });
+                } catch (err) {
+                    console.warn(err);
+                    recorder = new MediaRecorder(stream, {
+                        videoBitsPerSecond: options.videoBitsPerSecond
+                    });
+                    mimeType = 'video/webm';
+                }
+                recorder.ondataavailable = async event => {
+                    data.push(event.data);
+                    if (posterBlob == null) posterBlob = await this.getObjectFromCaptureRegion(elements.canvasEl, 'image/png', this.defaultGetImageOptions.quality!);
+                };
+                recorder.onstart = () => {
+                    start = Date.now();
+                }
+                recorder.onresume = () => {
+                    const timeNow = Date.now();
+                    const pauseDuration = timeNow - pause;
+                    start += pauseDuration;
+                }
+                recorder.onpause = () => {
+                    pause = Date.now();
+                }
+                const handleRecordVideo = async () => {
+                    startInferenceTime = Date.now();
+                    this.handleScan(scanParams);
+                    let rs = true;
+                    if (options.enableValidation && faceDetector) rs = await this.handleDetectFace(faceDetectionParams, faceDetector, options.enableAlert);
+                    else await Utils.delay(10)
+                    endInferenceTime = Date.now();
+                    const scanDuration = endInferenceTime - startInferenceTime;
+                    inferenceTimeSum += scanDuration;
+                    ++numInferences;
+                    if (rs) {
+                        if (prevStart !== start && recorder.state === 'recording') {
+                            duration = endInferenceTime - start;
                             let ratio = duration / recordMs;
                             percent = ratio >= 1 ? 100 : Math.floor(ratio * 100);
-                        } else {
-                            await this.stopMediaRecorder(recorder);
-                            start = 0;
-                            duration = 0;
-                            percent = 0;
-                            data = [];
-                            recorder = undefined;
-                            posterBlob = null;
+                        } else if (recorder.state === 'inactive') {
+                            prevStart = start;
+                            recorder.start();
+                        } else if (recorder.state === 'paused') {
+                            prevStart = start;
+                            recorder.resume();
                         }
-                        await Utils.delay(10);
-                        circleRegionPoints.forEach((elm, ix) => {
-                            if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
-                            else elm.classList.remove('ekyct-circle-region-point--marked')
-                        });
-                    } catch (err) {
-                        console.error(err);
-                        break;
+                    } else if (recorder.state === 'recording') {
+                        prevStart = start;
+                        recorder.pause();
                     }
-                    if (recordMs <= duration) {
+                    if (endInferenceTime - lastPanelUpdate >= panelUpdateMilliseconds || percent === 100) {
+                        const averageInferenceTime = inferenceTimeSum / numInferences;
+                        inferenceTimeSum = 0;
+                        numInferences = 0;
+                        const fps = 1000.0 / averageInferenceTime;
+                        if (rs) {
+                            circleRegionPoints.forEach((elm, ix) => {
+                                if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked')
+                                else elm.classList.remove('ekyct-circle-region-point--marked')
+                            });
+                        }
+                        lastPanelUpdate = endInferenceTime;
+                    }
+                    if (percent === 100) {
                         await this.stopMediaRecorder(recorder);
                         Utils.clearMediaStream(stream);
                         if (faceDetector) faceDetector.dispose();
+                        window.cancelAnimationFrame(rafId);
                         await Utils.delay(250);
-                        break;
-                    }
-                }
-                this.scanFaceRunning = false;
-                if (data.length > 0) {
-                    const blob = new Blob(data, { type: mimeType });
-                    let fileExtension = mimeType === 'video/mp4' ? '.mp4' : '.webm';
-                    resolve({
-                        blob: blob,
-                        posterBlob: posterBlob,
-                        contentLength: blob.size,
-                        contentType: blob.type,
-                        contentName: `${Utils.newGuid()}${fileExtension}`
-                    });
-                }
-                else resolve(null);
+                        if (data.length > 0) {
+                            const blob = new Blob(data, { type: mimeType });
+                            let fileExtension = mimeType === 'video/mp4' ? '.mp4' : '.webm';
+                            resolve({
+                                blob: blob,
+                                posterBlob: posterBlob,
+                                contentLength: blob.size,
+                                contentType: blob.type,
+                                contentName: `${Utils.newGuid()}${fileExtension}`
+                            });
+                        }
+                        else resolve(null);
+                    } else rafId = requestAnimationFrame(handleRecordVideo);
+                };
+                handleRecordVideo();
             } else reject('Canvas not exists!');
         } else reject('Capture region not exists!');
     }
@@ -386,12 +416,7 @@ export class EkycTools {
         })
     }
 
-    private async handleDetectFace(parameters: {
-        captureRegionEl: HTMLDivElement;
-        canvasEl: HTMLCanvasElement;
-        videoEl: HTMLVideoElement;
-        canvasContextWidth: number;
-    }, faceDetector: FaceDetector, enableAlert?: boolean) {
+    private async handleDetectFace(parameters: FaceDetectionParameters, faceDetector: FaceDetector, enableAlert?: boolean) {
         if (parameters.videoEl && parameters.canvasEl) {
             const faces = await faceDetector.estimateFaces(parameters.canvasEl);
             if (faces.length === 1) {
@@ -425,17 +450,7 @@ export class EkycTools {
         return false;
     }
 
-    private handleScan(parameters: {
-        captureRegionEl: HTMLDivElement;
-        videoEl: HTMLVideoElement;
-        shadingEl: HTMLDivElement;
-        canvasContextWidth: number;
-        originWidthRatio: number;
-        originHeightRatio: number;
-        newWidthRatio: number;
-        newHeightRatio: number;
-        canvasContext: CanvasRenderingContext2D;
-    }) {
+    private handleScan(parameters: ScanParameters) {
         const { videoEl, captureRegionEl, shadingEl, originWidthRatio, originHeightRatio, newWidthRatio, newHeightRatio, canvasContext } = parameters;
         let borderX = 0, borderY = 0, baseWidth = captureRegionEl.clientWidth,
             baseHeight = Utils.getCaptureRegionHeight(captureRegionEl);
@@ -635,7 +650,6 @@ export class EkycTools {
     private closeEkycWindow(container: HTMLDivElement) {
         // await Utils.exitFullscreen();
         Utils.clearMediaStream(this.mediaStream);
-        this.scanFaceRunning = false;
         if (document.body.contains(container)) document.body.removeChild(container);
     }
 

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="./dist/ekyc-tools.min.js"></script>
+    <script src="./minified/ekyc-tools-v1.0.1.min.js"></script>
     <style>
         h1 {
             margin: 0;
@@ -18,7 +18,7 @@
         <img style="width: 450px;" id="img-id">
     </p>
     <p>
-        <video style="width: 450px;" id="video-id"></video>
+        <img style="width: 450px;" id="video-poster">
     </p>
     <button onclick="handleCapture()">Take photo</button>
     <button onclick="handleRecord()">Take video</button>
@@ -40,17 +40,14 @@
                 height: { ideal: 720, max: 1080 },
                 videoBitsPerSecond: 2500000,
                 enableValidation: false,
-                enableAlert: true,
-                maxCanvasRatio: 0
+                enableAlert: true
             });
             alert(JSON.stringify(rs));
             if (rs) {
-                const videoEl = document.getElementById('video-id');
-                const url = URL.createObjectURL(rs.blob);
-                videoEl.controls = true;
-                videoEl.muted = true;
-                videoEl.src = url;
-                videoEl.onload = () => {
+                const img = document.getElementById('video-poster');
+                const url = URL.createObjectURL(rs.posterBlob);
+                img.src = url;
+                img.onload = () => {
                     URL.revokeObjectURL(url);
                 };
             }

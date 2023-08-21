@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <script src="./dist/ekyc-tools.min.js"></script>
+    <link rel="stylesheet" href="css/ekyct.css">
     <style>
         h1 {
             margin: 0;
@@ -39,8 +40,7 @@
                 width: { ideal: 720, max: 1080 },
                 height: { ideal: 720, max: 1080 },
                 videoBitsPerSecond: 2500000,
-                enableValidation: false,
-                enableAlert: true,
+                enableValidation: true,
                 maxCanvasRatio: 0
             });
             alert(JSON.stringify(rs));
@@ -61,7 +61,12 @@
             var capture = await tools.getImage({
                 width: { ideal: 5120, max: 7680 },
                 height: { ideal: 5120, max: 7680 },
-                maxCanvasRatio: 2
+                maxCanvasRatio: 2,
+                alert: {
+                    content: 'Hello this is test alert!!!',
+                    title: 'Oke Oke Alert',
+                    allowClose: true
+                }
             });
             alert(JSON.stringify(capture));
             if (capture) {

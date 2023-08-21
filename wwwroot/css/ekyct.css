@@ -212,19 +212,45 @@
     top: 10px;
     right: 0;
     transform: translateX(100%);
-    padding: 8px 16px;
-    border-radius: 8px;
-    border-style: solid;
-    border-width: 1px;
-    font-weight: 700;
+    border-radius: 4px;
     font-size: 12px;
     transition: .2s ease-out;
     max-width: 80%;
-    text-align: left
+    text-align: left;
+    display: flex;
+}
+
+.ekyct-alert-header {
+    border-bottom: 1px solid rgba(0, 0, 0, .08);
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+}
+
+.ekyct-alert-title {
+    font-weight: 700;
+    font-size: 16px;
+    flex-grow: 1;
+    vertical-align: middle;
+    overflow: hidden;
+    -webkit-line-clamp: 1;
+    display: box;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+    white-space: normal
+}
+
+.ekyct-alert-body {
+    padding: 8px;
+}
+
+.ekyct-alert.ekyct-alert-column {
+    flex-direction: column;
 }
 
 .ekyct-alert.warning {
-    border-color: #ffae00;
+    border: 1px solid #ffae00;
     color: #ffae00
 }
 
@@ -295,8 +321,16 @@
         font-size: 14px
     }
 
-    .ekyct-alert {
-        padding: 10px 20px
+    .ekyct-alert-header {
+        padding: 6px 10px;
+    }
+
+    .ekyct-alert-title {
+        font-size: 18px;
+    }
+
+    .ekyct-alert-body {
+        padding: 10px
     }
 
     .ekyct-cam-error--inner svg {

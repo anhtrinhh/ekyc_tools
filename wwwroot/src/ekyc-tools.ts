@@ -9,11 +9,19 @@ interface BaseEkycToolOptions {
     aspectRatio?: number;
     shadingRatio?: number;
     enableSwitchCamera?: boolean;
-    enableAlert?: boolean;
     enableValidation?: boolean;
     facingMode?: ConstrainDOMString;
     mimeType?: string;
     maxCanvasRatio?: number;
+    alert?: AlertOptions;
+}
+
+interface AlertOptions {
+    content?: string;
+    classList?: string[];
+    title?: string;
+    allowClose?: boolean;
+    displayTimeout: number;
 }
 
 interface CaptureEkycToolOptions extends BaseEkycToolOptions {
@@ -72,7 +80,6 @@ export class EkycTools {
     private readonly defaultGetImageOptions: CaptureEkycToolOptions = {
         enableFilePicker: true,
         enableSwitchCamera: true,
-        enableAlert: true,
         enableValidation: false,
         shadingRatio: 1.66666667,
         facingMode: 'environment',
@@ -80,7 +87,6 @@ export class EkycTools {
         quality: 0.99
     };
     private readonly defaultGetVideoOptions: RecordEkycToolOptions = {
-        enableAlert: true,
         enableSwitchCamera: true,
         enableValidation: true,
         facingMode: 'user',
@@ -280,7 +286,7 @@ export class EkycTools {
                     startInferenceTime = Date.now();
                     this.handleScan(scanParams);
                     let rs = true;
-                    if (options.enableValidation && faceDetector) rs = await this.handleDetectFace(faceDetectionParams, faceDetector, options.enableAlert);
+                    if (options.enableValidation && faceDetector) rs = await this.handleDetectFace(faceDetectionParams, faceDetector);
                     else await Utils.delay(10)
                     endInferenceTime = Date.now();
                     const scanDuration = endInferenceTime - startInferenceTime;
@@ -416,7 +422,7 @@ export class EkycTools {
         })
     }
 
-    private async handleDetectFace(parameters: FaceDetectionParameters, faceDetector: FaceDetector, enableAlert?: boolean) {
+    private async handleDetectFace(parameters: FaceDetectionParameters, faceDetector: FaceDetector) {
         if (parameters.videoEl && parameters.canvasEl) {
             const faces = await faceDetector.estimateFaces(parameters.canvasEl);
             if (faces.length === 1) {
@@ -427,26 +433,26 @@ export class EkycTools {
                     let rs = true;
                     if (faceWidth < parameters.canvasContextWidth * 0.3) {
                         rs = false;
-                        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02);
+                        Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_02, ['warning']);
                     }
                     if (faceWidth > parameters.canvasContextWidth * 0.6) {
                         rs = false;
-                        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01);
+                        Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_01, ['warning']);
                     }
                     if (noseTipKeypoint.y < parameters.canvasContextWidth * 0.35 || noseTipKeypoint.y > parameters.canvasContextWidth * 0.65
                         || noseTipKeypoint.x < parameters.canvasContextWidth * 0.35 || noseTipKeypoint.x > parameters.canvasContextWidth * 0.65) {
                         rs = false;
-                        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_03);
+                        Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_03, ['warning']);
                     }
-                    if (rs && enableAlert) Utils.cleanAlert(parameters.captureRegionEl);
+                    if (rs) Utils.cleanAlert(parameters.captureRegionEl);
                     return rs;
                 }
-            } else if (faces.length > 1 && enableAlert) {
-                Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_05);
+            } else if (faces.length > 1) {
+                Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_05, ['warning']);
                 return false;
             }
         }
-        if (enableAlert) Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_04);
+        Utils.insertAlert(parameters.captureRegionEl, EkycTools.FACE_DETECTION_WARNING_04, ['warning']);
         return false;
     }
 
@@ -495,6 +501,10 @@ export class EkycTools {
         const footer = this.createFooter(options);
         const body = document.createElement('div');
         body.className = 'ekyct-body';
+        if (options.alert) {
+            const { displayTimeout, allowClose, classList, content, title } = options.alert;
+            Utils.insertAlert(captureRegion, content, classList, title, allowClose, displayTimeout);
+        }
         body.appendChild(captureRegion);
         containerInner.appendChild(this.createHeader());
         containerInner.appendChild(body);
@@ -561,7 +571,6 @@ export class EkycTools {
 
     private validateEkycToolOptions(options: BaseEkycToolOptions) {
         if (!options.enableSwitchCamera) options.enableSwitchCamera = false;
-        if (!options.enableAlert) options.enableAlert = false;
         if (!options.enableValidation) options.enableValidation = false;
         if (typeof options.aspectRatio !== 'number'
             || options.aspectRatio < 0) options.aspectRatio = 1;

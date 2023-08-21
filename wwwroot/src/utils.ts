@@ -121,23 +121,6 @@ export class Utils {
         };
     }
 
-    public static insertAlert(parentEl: HTMLDivElement, text: string, type = 'warning') {
-        if (parentEl) {
-            let alertEl = parentEl.querySelector('.ekyct-alert');
-            if (alertEl) {
-                if (alertEl.innerHTML !== text) {
-                    if (alertEl.classList.contains('active') && !Utils.insertAlertTimeout) alertEl.classList.remove('active');
-                    if (!Utils.insertAlertTimeout) Utils.setInsertAlertTimeout(alertEl, text, 2200, 200);
-                }
-            } else {
-                alertEl = document.createElement('div');
-                alertEl.className = `ekyct-alert ${type}`;
-                parentEl.appendChild(alertEl);
-                if (!alertEl.classList.contains('active') && !Utils.insertAlertTimeout) Utils.setInsertAlertTimeout(alertEl, text, 2020, 20);
-            }
-        }
-    }
-
     public static cleanAlert(parentEl: HTMLDivElement) {
         let alertEl = parentEl.querySelector('.ekyct-alert');
         if (alertEl && alertEl.classList.contains('active')) {
@@ -157,10 +140,80 @@ export class Utils {
         }
     }
 
-    private static setInsertAlertTimeout(alertEl: Element, text: string, innerTimeoutms: number, outerTimeoutMs: number) {
+    public static insertAlert(parentEl: HTMLDivElement, content?: string, classList?: string[], title?: string, allowClose?: boolean, displayTimeout: number = 2000) {
+        if (parentEl) {
+            let alertEl = parentEl.querySelector('.ekyct-alert');
+            if (alertEl) {
+                if (this.getAlertContent(alertEl) !== content) {
+                    if (alertEl.classList.contains('active') && !Utils.insertAlertTimeout) alertEl.classList.remove('active');
+                    if (!Utils.insertAlertTimeout) {
+                        this.setAlertContent(alertEl, content);
+                        if (typeof displayTimeout === 'number' && displayTimeout >= 1000) Utils.setInsertAlertTimeout(alertEl, displayTimeout + 200, 200);
+                        else alertEl.classList.add('active');
+                    }
+                }
+            } else {
+                alertEl = this.createAlertElement(content, title, classList, allowClose);
+                parentEl.appendChild(alertEl);
+                if (!alertEl.classList.contains('active') && !Utils.insertAlertTimeout) {
+                    this.setAlertContent(alertEl, content);
+                    if (typeof displayTimeout === 'number' && displayTimeout >= 1000) Utils.setInsertAlertTimeout(alertEl, displayTimeout + 20, 20);
+                    else alertEl.classList.add('active');
+                }
+            }
+        }
+    }
+
+    private static createAlertElement(content?: string, title?: string, classList?: string[], allowClose?: boolean) {
+        const alertEl = document.createElement('div');
+        let classes = ['ekyct-alert'];
+        if ((typeof title === 'string' && title.trim().length > 0) || (typeof allowClose === 'boolean' && allowClose)) {
+            const alertHeader = document.createElement('div');
+            alertHeader.className = 'ekyct-alert-header';
+            const alertTitle = document.createElement('div');
+            alertTitle.className = 'ekyct-alert-title';
+            alertHeader.appendChild(alertTitle);
+            if (typeof title === 'string' && title.trim().length > 0) {
+                title = title.trim();
+                alertTitle.innerHTML = title;
+                classes.push('ekyct-alert-column');
+            }
+            if (typeof allowClose === 'boolean' && allowClose) {
+                const closeButton = document.createElement('button');
+                closeButton.className = 'ekyct-btn ekyct-close-btn';
+                closeButton.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>';
+                alertHeader.appendChild(closeButton);
+            }
+            alertEl.appendChild(alertHeader);
+        }
+        const alertBody = document.createElement('div');
+        alertBody.className = 'ekyct-alert-body';
+        alertEl.appendChild(alertBody);
+        if (Array.isArray(classList) && classList.length > 0) classes = [...classes, ...classList];
+        if (typeof content === 'string' && content.trim().length > 0) {
+            content = content.trim();
+            alertBody.innerHTML = content;
+        }
+        alertEl.classList.add(...classes);
+        return alertEl;
+    }
+
+    private static setAlertContent(alertEl: Element, content?: string) {
+        if (typeof content === 'string' && content.trim().length > 0) {
+            const alertBody = alertEl.querySelector('.ekyct-alert-body');
+            if (alertBody) alertBody.innerHTML = content;
+        }
+    }
+
+    private static getAlertContent(alertEl: Element) {
+        const alertBody = alertEl.querySelector('.ekyct-alert-body');
+        if (alertBody) return alertBody.innerHTML;
+        return '';
+    }
+
+    private static setInsertAlertTimeout(alertEl: Element, innerTimeoutms: number, outerTimeoutMs: number) {
         Utils.insertAlertTimeout = setTimeout(() => {
             alertEl.classList.add('active');
-            alertEl.innerHTML = text;
             setTimeout(() => {
                 Utils.clearInsertAlertTimeout();
             }, innerTimeoutms);

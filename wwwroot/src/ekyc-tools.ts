@@ -20,7 +20,8 @@ interface AlertOptions {
     content?: string;
     classList?: string[];
     title?: string;
-    allowClose?: boolean;
+    enableCloseBtn?: boolean;
+    removeOnOcr?: boolean;
     displayTimeout: number;
 }
 
@@ -228,6 +229,7 @@ export class EkycTools {
         this.toggleDisabledButtons(container);
         const captureRegionEl = container.querySelector('div.ekyct-capture-region') as HTMLDivElement;
         if (captureRegionEl) {
+            if (options.alert && options.alert.removeOnOcr) captureRegionEl.querySelector('.ekyct-alert')?.remove();
             const elements = Utils.getInnerElementsInCaptureDiv(captureRegionEl)
             if (elements.canvasEl) {
                 let posterBlob: Blob | null = null;
@@ -370,6 +372,7 @@ export class EkycTools {
                     evt.preventDefault();
                     const captureRegionEl = container.querySelector('div.ekyct-capture-region') as HTMLDivElement;
                     if (captureRegionEl) {
+                        if (options.alert && options.alert.removeOnOcr) captureRegionEl.querySelector('.ekyct-alert')?.remove();
                         const elements = Utils.getInnerElementsInCaptureDiv(captureRegionEl);
                         let canvasContextWidth = Utils.getCanvasContextWidth(elements.videoEl, elements.shadingEl, captureRegionEl.clientWidth, options.maxCanvasRatio);
                         const contextAttributes: any = { willReadFrequently: true };
@@ -502,8 +505,8 @@ export class EkycTools {
         const body = document.createElement('div');
         body.className = 'ekyct-body';
         if (options.alert) {
-            const { displayTimeout, allowClose, classList, content, title } = options.alert;
-            Utils.insertAlert(captureRegion, content, classList, title, allowClose, displayTimeout);
+            const { displayTimeout, enableCloseBtn, classList, content, title } = options.alert;
+            Utils.insertAlert(captureRegion, content, classList, title, enableCloseBtn, displayTimeout);
         }
         body.appendChild(captureRegion);
         containerInner.appendChild(this.createHeader());

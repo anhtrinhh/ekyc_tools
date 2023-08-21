@@ -145,6 +145,7 @@ export class Utils {
             let alertEl = parentEl.querySelector('.ekyct-alert');
             if (alertEl) {
                 if (this.getAlertContent(alertEl) !== content) {
+                    // if (Array.isArray(classList) && classList.length > 0) alertEl.classList.add(...classList);
                     if (alertEl.classList.contains('active') && !Utils.insertAlertTimeout) alertEl.classList.remove('active');
                     if (!Utils.insertAlertTimeout) {
                         this.setAlertContent(alertEl, content);
@@ -170,11 +171,11 @@ export class Utils {
         if ((typeof title === 'string' && title.trim().length > 0) || (typeof allowClose === 'boolean' && allowClose)) {
             const alertHeader = document.createElement('div');
             alertHeader.className = 'ekyct-alert-header';
-            const alertTitle = document.createElement('div');
-            alertTitle.className = 'ekyct-alert-title';
-            alertHeader.appendChild(alertTitle);
-            if (typeof title === 'string' && title.trim().length > 0) {
+            if (typeof title === 'string') {
                 title = title.trim();
+                const alertTitle = document.createElement('div');
+                alertTitle.className = 'ekyct-alert-title';
+                alertHeader.appendChild(alertTitle);
                 alertTitle.innerHTML = title;
                 classes.push('ekyct-alert-column');
             }
@@ -182,6 +183,10 @@ export class Utils {
                 const closeButton = document.createElement('button');
                 closeButton.className = 'ekyct-btn ekyct-close-btn';
                 closeButton.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>';
+                closeButton.addEventListener('click', evt => {
+                    evt.preventDefault();
+                    alertEl.classList.remove('active');
+                }, { once: true });
                 alertHeader.appendChild(closeButton);
             }
             alertEl.appendChild(alertHeader);

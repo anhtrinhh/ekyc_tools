@@ -3,20 +3,23 @@ export class Utils {
     public static shardBorderLargeSize = 40;
     public static shardBorderSmallSize = 5;
     public static handleScreen(captureRegion: HTMLDivElement) {
-        const container = captureRegion.closest('.ekyct-container--inner') as HTMLDivElement;
-        if (container.clientWidth >= container.clientHeight) container.classList.add('ekyct-container--rotate');
-        else container.classList.remove('ekyct-container--rotate');
-        if (captureRegion) {
-            const ratio = parseFloat(captureRegion.dataset['shadingRatio'] || '0')
-            const shardingEl = this.insertShadingElement(captureRegion, ratio);
-            this.insertCanvasElement(captureRegion);
-            if (shardingEl) {
-                const header = container.querySelector('.ekyct-header') as HTMLDivElement;
-                const shadingElHeight = parseFloat(shardingEl.style.height.slice(0, -2))
-                if (header && container.classList.contains('ekyct-container--rotate')) header.style.height = `${shadingElHeight}px`;
-                else header.style.height = 'unset';
+        // Utils.Delay để fix lỗi iphone quay màn hình
+        Utils.delay(200).then(() => {
+            const container = captureRegion.closest('.ekyct-container--inner') as HTMLDivElement;
+            if (container.clientWidth >= container.clientHeight) container.classList.add('ekyct-container--rotate');
+            else container.classList.remove('ekyct-container--rotate');
+            if (captureRegion) {
+                const ratio = parseFloat(captureRegion.dataset['shadingRatio'] || '0')
+                const shardingEl = this.insertShadingElement(captureRegion, ratio);
+                this.insertCanvasElement(captureRegion);
+                if (shardingEl) {
+                    const header = container.querySelector('.ekyct-header') as HTMLDivElement;
+                    const shadingElHeight = parseFloat(shardingEl.style.height.slice(0, -2))
+                    if (header && container.classList.contains('ekyct-container--rotate')) header.style.height = `${shadingElHeight}px`;
+                    else header.style.height = 'unset';
+                }
             }
-        }
+        })
     }
 
     private static insertCanvasElement(parent: HTMLDivElement) {

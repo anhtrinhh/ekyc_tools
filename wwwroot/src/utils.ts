@@ -3,8 +3,8 @@ export class Utils {
     public static shardBorderLargeSize = 40;
     public static shardBorderSmallSize = 5;
     public static handleScreen(captureRegion: HTMLDivElement) {
-        // Utils.Delay để fix lỗi iphone quay màn hình
-        Utils.delay(200).then(() => {
+        // setTimeout để fix lỗi iphone quay màn hình
+        setTimeout(() => {
             const container = captureRegion.closest('.ekyct-container--inner') as HTMLDivElement;
             if (container.clientWidth >= container.clientHeight) container.classList.add('ekyct-container--rotate');
             else container.classList.remove('ekyct-container--rotate');
@@ -19,7 +19,7 @@ export class Utils {
                     else header.style.height = 'unset';
                 }
             }
-        })
+        }, 100);
     }
 
     private static insertCanvasElement(parent: HTMLDivElement) {

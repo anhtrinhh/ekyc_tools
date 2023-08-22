@@ -190,7 +190,7 @@ export class EkycTools {
         this.toggleDisabledButtons(container);
         const captureRegionEl = container.querySelector('div.ekyct-capture-region') as HTMLDivElement;
         if (captureRegionEl) {
-            if (options.alert && options.alert.removeOnOcr) captureRegionEl.querySelector('.ekyct-alert')?.remove();
+            if (options.alert && options.alert.removeOnOcr) container.querySelector('.ekyct-alert')?.remove();
             const elements = Utils.getInnerElementsInCaptureDiv(captureRegionEl)
             if (elements.canvasEl) {
                 let posterBlob: Blob | null = null;
@@ -310,7 +310,7 @@ export class EkycTools {
                 evt.preventDefault();
                 const captureRegionEl = container.querySelector('div.ekyct-capture-region') as HTMLDivElement;
                 if (captureRegionEl) {
-                    if (options.alert && options.alert.removeOnOcr) captureRegionEl.querySelector('.ekyct-alert')?.remove();
+                    if (options.alert && options.alert.removeOnOcr) container.querySelector('.ekyct-alert')?.remove();
                     const elements = Utils.getInnerElementsInCaptureDiv(captureRegionEl);
                     let canvasContextWidth = Utils.getCanvasContextWidth(elements.videoEl, elements.shadingEl, captureRegionEl.clientWidth, options.maxCanvasRatio);
                     const contextAttributes: any = { willReadFrequently: true };

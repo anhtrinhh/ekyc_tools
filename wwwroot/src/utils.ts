@@ -1,5 +1,3 @@
-import { createDetector, SupportedModels, MediaPipeFaceDetectorMediaPipeModelConfig } from '@tensorflow-models/face-detection';
-
 export class Utils {
     private static insertAlertTimeout: any = null;
     public static shardBorderLargeSize = 40;
@@ -437,20 +435,6 @@ export class Utils {
             if (baseHeight > videoEl.clientHeight) baseHeight = videoEl.clientHeight;
         }
         return baseHeight;
-    }
-
-    public static async createFaceDetector() {
-        try {
-            const model = SupportedModels.MediaPipeFaceDetector;
-            const detectorConfig: MediaPipeFaceDetectorMediaPipeModelConfig = {
-                runtime: 'mediapipe',
-                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection'
-            };
-            return await createDetector(model, detectorConfig);
-        } catch (err) {
-            console.error(err);
-            return undefined;
-        }
     }
 
     public static getCanvasContextWidth(videoEl: HTMLVideoElement, shadingEl: HTMLDivElement, captureRegionWidth: number, maxCanvasRatio?: number) {

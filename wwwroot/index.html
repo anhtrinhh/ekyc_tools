@@ -35,52 +35,58 @@
         });
         async function handleRecord() {
             var tools = new EkycTools();
-            var rs = await tools.getVideo({
+            tools.getVideo({
                 width: { ideal: 720, max: 1080 },
                 height: { ideal: 720, max: 1080 },
                 videoBitsPerSecond: 2500000,
-                enableValidation: true,
                 maxCanvasRatio: 0,
                 alert: {
                     content: '<p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p>',
                     enableCloseBtn: true,
                     classList: ['ekyct-alert-reverse'],
                     removeOnOcr: true
-                }
+                },
+                onStart: container => console.log(container),
+                onStop: rs => {
+                    if (rs) {
+                        const videoEl = document.getElementById('video-id');
+                        const url = URL.createObjectURL(rs.blob);
+                        videoEl.controls = true;
+                        videoEl.muted = true;
+                        videoEl.src = url;
+                        videoEl.onload = () => {
+                            URL.revokeObjectURL(url);
+                        };
+                    }
+                    console.log(rs)
+                },
+                onError: err => console.error(err)
             });
-            alert(JSON.stringify(rs));
-            if (rs) {
-                const videoEl = document.getElementById('video-id');
-                const url = URL.createObjectURL(rs.blob);
-                videoEl.controls = true;
-                videoEl.muted = true;
-                videoEl.src = url;
-                videoEl.onload = () => {
-                    URL.revokeObjectURL(url);
-                };
-            }
         }
 
         async function handleCapture() {
             var tools = new EkycTools();
-            var capture = await tools.getImage({
+            tools.getImage({
                 width: { ideal: 5120, max: 7680 },
                 height: { ideal: 5120, max: 7680 },
                 maxCanvasRatio: 2,
                 alert: {
                     content: '<p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p>',
                     enableCloseBtn: true
+                },
+                onStart: container => console.log(container),
+                onStop: rs => {
+                    alert(JSON.stringify(rs));
+                    if (rs) {
+                        const img = document.getElementById('img-id');
+                        const url = URL.createObjectURL(rs.blob);
+                        img.src = url;
+                        img.onload = () => {
+                            URL.revokeObjectURL(url);
+                        };
+                    }
                 }
             });
-            alert(JSON.stringify(capture));
-            if (capture) {
-                const img = document.getElementById('img-id');
-                const url = URL.createObjectURL(capture.blob);
-                img.src = url;
-                img.onload = () => {
-                    URL.revokeObjectURL(url);
-                };
-            }
         }
     </script>
 </body>

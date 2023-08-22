@@ -227,7 +227,6 @@
     display: flex;
     align-items: center;
     flex-direction: column;
-    justify-content: flex-start;
 }
 
 .ekyct-alert.ekyct-alert-column {
@@ -250,7 +249,6 @@
     padding: 4px 8px;
     gap: 8px;
     flex-direction: row;
-    justify-content: unset;
 }
 
 .ekyct-alert-header .ekyct-close-btn {
@@ -362,7 +360,7 @@
     }
 
     .ekyct-alert-header {
-        padding: 10px 0 10px 6x;
+        padding: 10px 0 10px 6px;
     }
 
     .ekyct-alert-reverse .ekyct-alert-header {
@@ -372,6 +370,11 @@
     .ekyct-alert-column .ekyct-alert-header {
         padding: 6px 10px;
         gap: 10px;
+    }
+
+    .ekyct-alert-reverse.ekyct-alert-column .ekyct-alert-header {
+        border-top: 1px solid rgba(0, 0, 0, .08);
+        border-bottom: unset;
     }
 
     .ekyct-alert-header .ekyct-close-btn svg {

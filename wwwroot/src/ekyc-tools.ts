@@ -257,6 +257,7 @@ export class EkycTools {
                     }
                     if (percent === 100) {
                         await this.stopMediaRecorder(recorder);
+                        while(!posterBlob) await Utils.delay(100);
                         Utils.clearMediaStream(stream);
                         window.cancelAnimationFrame(rafId);
                         let rs: EkycRecordResult | null = null;
@@ -273,7 +274,7 @@ export class EkycTools {
                         }
                         this.toggleDisabledButtons(container, false);
                         if (options.onStop) options.onStop(rs);
-                        await Utils.delay(300);
+                        await Utils.delay(200);
                         circleRegionPoints.forEach(elm => elm.classList.remove('ekyct-circle-region-point--marked'));
                     } else rafId = requestAnimationFrame(handleRecordVideo);
                 };

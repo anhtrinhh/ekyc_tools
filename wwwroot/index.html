@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="./dist/ekyc-tools.min.js"></script>
+    <script src="./minified/ekyc-tools-v1.0.1-cpt.js"></script>
     <style>
         h1 {
             margin: 0;
@@ -44,7 +44,8 @@
                     content: '<p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p>',
                     enableCloseBtn: true,
                     classList: ['ekyct-alert-reverse'],
-                    removeOnOcr: true
+                    removeOnOcr: true,
+                    parentSelector: '.ekyct-container'
                 },
                 onStart: container => console.log(container),
                 onStop: rs => {

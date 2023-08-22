@@ -24,6 +24,7 @@ interface AlertOptions {
     enableCloseBtn?: boolean;
     removeOnOcr?: boolean;
     displayTimeout: number;
+    parentSelector?: string;
 }
 
 interface CaptureEkycToolOptions extends BaseEkycToolOptions {
@@ -410,8 +411,10 @@ export class EkycTools {
         const body = document.createElement('div');
         body.className = 'ekyct-body';
         if (options.alert) {
-            const { displayTimeout, enableCloseBtn, classList, content, title } = options.alert;
-            Utils.insertAlert(captureRegion, content, classList, title, enableCloseBtn, displayTimeout);
+            const { displayTimeout, enableCloseBtn, classList, content, title, parentSelector } = options.alert;
+            let alertParent = captureRegion;
+            if (parentSelector === '.ekyct-container' || parentSelector === '.ekyct-container--inner') alertParent = containerInner;
+            Utils.insertAlert(alertParent, content, classList, title, enableCloseBtn, displayTimeout);
         }
         body.appendChild(captureRegion);
         containerInner.appendChild(this.createHeader());

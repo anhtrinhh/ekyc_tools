@@ -29,7 +29,9 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
-    max-width: 1120px;
+    max-width: 880px;
+    position: relative;
+    overflow: hidden;
 }
 
 .ekyct-container--rotate {
@@ -38,7 +40,7 @@
 }
 
 .ekyct-container--rotate .ekyct-capture-region {
-    max-width: 960px;
+    max-width: 720px;
 }
 
 .ekyct-container--rotate .ekyct-footer,
@@ -218,7 +220,7 @@
     max-width: 80%;
     text-align: left;
     display: flex;
-    z-index: 10;
+    z-index: 101;
 }
 
 .ekyct-alert-header {
@@ -251,21 +253,21 @@
     flex-direction: row;
 }
 
-.ekyct-alert-header .ekyct-close-btn {
+.ekyct-alert-header .ekyct-alert-close-btn {
     background-color: unset;
     color: rgba(0, 0, 0, 0.6);
     padding: 0;
 }
 
-.ekyct-alert-header .ekyct-close-btn:hover {
+.ekyct-alert-header .ekyct-alert-close-btn:hover {
     color: rgba(0, 0, 0, 0.8);
 }
 
-.ekyct-alert-header .ekyct-close-btn:active {
+.ekyct-alert-header .ekyct-alert-close-btn:active {
     color: #000;
 }
 
-.ekyct-alert-header .ekyct-close-btn svg {
+.ekyct-alert-header .ekyct-alert-close-btn svg {
     width: 16px;
     height: 16px;
 }
@@ -377,7 +379,7 @@
         border-bottom: unset;
     }
 
-    .ekyct-alert-header .ekyct-close-btn svg {
+    .ekyct-alert-header .ekyct-alert-close-btn svg {
         width: 18px;
         height: 18px;
     }

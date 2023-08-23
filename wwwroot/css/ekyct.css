@@ -103,7 +103,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden
+    overflow: hidden;
+    background: #161619;
+    z-index: 1
 }
 
 .ekyct-hide-shader-border .ekyct-shading {

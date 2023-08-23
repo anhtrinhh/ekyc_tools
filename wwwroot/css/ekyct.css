@@ -208,6 +208,8 @@
 .ekyct-video {
     width: 100%;
     display: block;
+    position: absolute;
+    z-index: -2;
 }
 
 .ekyct-alert {

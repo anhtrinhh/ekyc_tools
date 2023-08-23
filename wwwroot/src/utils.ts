@@ -431,7 +431,10 @@ export class Utils {
     public static getCaptureRegionHeight(captureRegionEl: HTMLDivElement) {
         const container = captureRegionEl.closest('.ekyct-container--inner') as HTMLDivElement;
         const videoEl = captureRegionEl.querySelector('.ekyct-video');
+        const headerEl = container.querySelector('.ekyct-header');
+        const footerEl = container.querySelector('.ekyct-footer');
         let headerAndFooterHeight = 180;
+        if (headerEl && footerEl)  headerAndFooterHeight = headerEl.clientHeight + footerEl.clientHeight;
         if (container.classList.contains('ekyct-container--rotate')) headerAndFooterHeight = 0;
         let baseHeight = window.innerHeight - headerAndFooterHeight;
         if (videoEl) {

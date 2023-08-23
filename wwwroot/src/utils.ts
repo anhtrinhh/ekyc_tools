@@ -3,6 +3,8 @@ export class Utils {
     public static shardBorderLargeSize = 40;
     public static shardBorderSmallSize = 5;
     public static handleScreen(captureRegion: HTMLDivElement) {
+        const bodyEl = captureRegion.closest('.ekyct-body') as HTMLDivElement;
+        if(bodyEl) bodyEl.style.height = '100%';
         // setTimeout để fix lỗi iphone quay màn hình
         setTimeout(() => {
             const container = captureRegion.closest('.ekyct-container--inner') as HTMLDivElement;
@@ -433,12 +435,17 @@ export class Utils {
         const videoEl = captureRegionEl.querySelector('.ekyct-video');
         const headerEl = container.querySelector('.ekyct-header');
         const footerEl = container.querySelector('.ekyct-footer');
+        const bodyEl = container.querySelector('.ekyct-body') as HTMLDivElement;
         let headerAndFooterHeight = 180;
-        if (headerEl && footerEl)  headerAndFooterHeight = headerEl.clientHeight + footerEl.clientHeight;
+        if (headerEl && footerEl) headerAndFooterHeight = headerEl.clientHeight + footerEl.clientHeight;
         if (container.classList.contains('ekyct-container--rotate')) headerAndFooterHeight = 0;
         let baseHeight = window.innerHeight - headerAndFooterHeight;
         if (videoEl) {
             if (baseHeight > videoEl.clientHeight) baseHeight = videoEl.clientHeight;
+        }
+        if (bodyEl) {
+            if(headerAndFooterHeight > 0) bodyEl.style.height = `${baseHeight}px`;
+            else bodyEl.style.height = '100%';
         }
         return baseHeight;
     }

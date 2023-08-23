@@ -49,10 +49,6 @@
     height: 100%
 }
 
-.ekyct-container--rotate .ekyct-body {
-    height: 100%;
-}
-
 .ekyct-container--rotate .ekyct-footer--inner,
 .ekyct-container--rotate .ekyct-header--inner {
     width: unset;
@@ -93,6 +89,7 @@
 
 .ekyct-body {
     width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -217,6 +214,8 @@
 .ekyct-video {
     width: 100%;
     display: block;
+    position: absolute;
+    z-index: -2;
 }
 
 .ekyct-alert {

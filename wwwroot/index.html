@@ -68,9 +68,10 @@
         async function handleCapture() {
             var tools = new EkycTools();
             tools.getImage({
-                width: { ideal: 5120, max: 7680 },
-                height: { ideal: 5120, max: 7680 },
+                width: 5120,
+                height: 5120,
                 maxCanvasRatio: 2,
+                aspectRatio: 0,
                 alert: {
                     content: '<p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p>',
                     enableCloseBtn: true

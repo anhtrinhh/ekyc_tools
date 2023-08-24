@@ -11,6 +11,7 @@ interface BaseEkycToolOptions {
     facingMode?: ConstrainDOMString;
     mimeType?: string;
     maxCanvasRatio?: number;
+    quality?: number;
     alert?: AlertOptions;
     onStart?: (ocrWindow?: HTMLDivElement) => void;
     onError?: (reason?: any) => void;
@@ -29,7 +30,6 @@ interface AlertOptions {
 
 interface CaptureEkycToolOptions extends BaseEkycToolOptions {
     enableFilePicker?: boolean;
-    quality?: number;
 }
 
 interface RecordEkycToolOptions extends BaseEkycToolOptions {
@@ -73,7 +73,7 @@ export class EkycTools {
         shadingRatio: 1.66666667,
         facingMode: 'environment',
         mimeType: 'image/png',
-        quality: 0.99,
+        quality: 0.92,
         onStop: () => this.closeOcrWindow()
     };
     private readonly defaultGetVideoOptions: RecordEkycToolOptions = {
@@ -82,6 +82,7 @@ export class EkycTools {
         shadingRatio: 1,
         recordMs: 6000,
         mimeType: 'video/webm',
+        quality: 0.92,
         onStop: () => this.closeOcrWindow()
     };
 
@@ -257,7 +258,7 @@ export class EkycTools {
                     }
                     if (percent === 100) {
                         await this.stopMediaRecorder(recorder);
-                        while(!posterBlob) await Utils.delay(100);
+                        while (!posterBlob) await Utils.delay(100);
                         Utils.clearMediaStream(stream);
                         window.cancelAnimationFrame(rafId);
                         let rs: EkycRecordResult | null = null;
@@ -328,9 +329,8 @@ export class EkycTools {
                     Utils.toggleLoaderOnCaptureRegion(true, container.querySelector('.ekyct-capture-region'));
                     this.handleScan(scanParams);
                     let mimeType = typeof (options.mimeType) === 'string' && ['image/jpeg', 'image/png', 'image/webp'].includes(options.mimeType) ? options.mimeType : this.defaultGetImageOptions.mimeType;
-                    let quality = typeof (options.quality) === 'number' && options.quality >= 0 && options.quality <= 1 ? options.quality : this.defaultGetImageOptions.quality;
                     let fileExtension = mimeType === 'image/webp' ? '.webp' : mimeType === 'image/jpeg' ? '.jpg' : '.png';
-                    const rs = await this.getObjectFromCaptureRegion(elements.canvasEl, mimeType!, quality!);
+                    const rs = await this.getObjectFromCaptureRegion(elements.canvasEl, mimeType!, options.quality!);
                     let ekycResult: EkycToolResult | null = null;
                     if (rs) ekycResult = {
                         blob: rs,
@@ -435,7 +435,8 @@ export class EkycTools {
                 height: options.height,
                 aspectRatio: options.aspectRatio,
                 frameRate: options.frameRate,
-                facingMode: options.facingMode
+                facingMode: options.facingMode,
+                quality: options.quality
             };
             this.toggleDisabledButtons(container);
             await this.insertVideoElement(captureRegion, this.getVideoConstraints(bothCamCapabilities, videoConstraints));
@@ -499,6 +500,7 @@ export class EkycTools {
             if (facingModeOption.exact !== 'environment' && facingModeOption.exact !== 'user') options.facingMode = 'environment'
         } else if (options.facingMode === 'environment' || options.facingMode === 'user') options.facingMode = options.facingMode
         else options.facingMode = 'environment'
+        options.quality = typeof (options.quality) === 'number' && options.quality >= 0 && options.quality <= 1 ? options.quality : this.defaultGetImageOptions.quality;
     }
 
     private createNotHasCamElement() {
@@ -533,6 +535,7 @@ export class EkycTools {
         frameRate?: any;
         aspectRatio?: number;
         facingMode?: ConstrainDOMString;
+        quality?: number;
     }) {
         const constraints: MediaTrackConstraints = {};
         const rearCam = bothCamCapabilities.rearCamCapabilities;
@@ -542,7 +545,11 @@ export class EkycTools {
         if (facingMode) constraints.facingMode = facingMode;
         const setWidthHeight = (cap: MediaTrackCapabilities, dim: 'width' | 'height', value: any) => {
             if (cap[dim]) {
-                const max = cap[dim]!.max;
+                let max = cap[dim]!.max;
+                if (max && options.quality) {
+                    max = Math.floor(max * options.quality);
+                    if (max % 2 !== 0) max -= 1;
+                }
                 if (typeof value === 'number' && value > 0) {
                     if (max && value > max) value = max;
                     constraints[dim] = value;

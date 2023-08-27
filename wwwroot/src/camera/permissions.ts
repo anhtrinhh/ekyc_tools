@@ -1,13 +1,32 @@
+/**
+ * @fileoverview
+ * Libraries associated with Camera Permissions.
+ * 
+ */
+
+/**
+ * Permission management around Camera in javascript.
+ * 
+ */
 export class CameraPermissions {
 
-    public static async hasPermissions(): Promise<boolean> {
-      let devices = await navigator.mediaDevices.enumerateDevices();
-      for (const device of devices) {
-        if(device.kind === "videoinput" && device.label) {
-          return true;
-        }
+  /**
+   * Returns {@code true} if the web page already has access to user camera 
+   * permissions.
+   */
+  public static async hasPermissions(): Promise<boolean> {
+    // TODO(mebjas): Use Permissions Query API, once support is widespread.
+    // https://developer.mozilla.org/en-US/docs/Web/API/Permissions/query
+
+    let devices = await navigator.mediaDevices.enumerateDevices();
+    for (const device of devices) {
+      // Hacky way to check if camera permissions are granted. Device
+      // labels are only set in case user has granted permissions.
+      if(device.kind === "videoinput" && device.label) {
+        return true;
       }
-      return false;
     }
-    
+
+    return false;
+  }
 }

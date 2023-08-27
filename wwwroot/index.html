@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <script src="./dist/ekyc-tools.min.js"></script>
+    <link rel="stylesheet" href="css/ekyct.css">
     <style>
         h1 {
             margin: 0;
@@ -23,72 +24,14 @@
     <button onclick="handleCapture()">Take photo</button>
     <button onclick="handleRecord()">Take video</button>
     <script>
-        let deviceIds = 'null'
-        EkycTools.getAvailableCameraDevices().then(devices => {
-            if (devices.length > 0) {
-                deviceIds = '';
-                devices.forEach(device => {
-                    deviceIds += `${device.deviceId}, `
-                });
-            }
-            alert(`Number of available devices: ${devices.length}, Device ids: ${deviceIds}`)
-        });
         async function handleRecord() {
             var tools = new EkycTools();
-            tools.getVideo({
-                width: { ideal: 720, max: 1080 },
-                height: { ideal: 720, max: 1080 },
-                videoBitsPerSecond: 2500000,
-                maxCanvasRatio: 0,
-                alert: {
-                    content: '<p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p>',
-                    enableCloseBtn: true,
-                    classList: ['ekyct-alert-reverse'],
-                    removeOnOcr: true,
-                    parentSelector: '.ekyct-container'
-                },
-                onStart: container => console.log(container),
-                onStop: rs => {
-                    if (rs) {
-                        const videoEl = document.getElementById('video-id');
-                        const url = URL.createObjectURL(rs.blob);
-                        videoEl.controls = true;
-                        videoEl.muted = true;
-                        videoEl.src = url;
-                        videoEl.onload = () => {
-                            URL.revokeObjectURL(url);
-                        };
-                    }
-                    console.log(rs)
-                },
-                onError: err => console.error(err)
-            });
+            tools.getVideo({});
         }
 
         async function handleCapture() {
-            var tools = new EkycTools();
-            tools.getImage({
-                width: 5120,
-                height: 5120,
-                maxCanvasRatio: 2,
-                aspectRatio: 0,
-                alert: {
-                    content: '<p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p><p>Hello this is test alert!!!</p>',
-                    enableCloseBtn: true
-                },
-                onStart: container => console.log(container),
-                onStop: rs => {
-                    alert(JSON.stringify(rs));
-                    if (rs) {
-                        const img = document.getElementById('img-id');
-                        const url = URL.createObjectURL(rs.blob);
-                        img.src = url;
-                        img.onload = () => {
-                            URL.revokeObjectURL(url);
-                        };
-                    }
-                }
-            });
+            var tools = new EkycTools(true);
+            tools.getImage({ enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 2 });
         }
     </script>
 </body>

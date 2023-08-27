@@ -41,6 +41,7 @@
 
 .ekyct-container--rotate .ekyct-capture-region {
     max-width: 720px;
+    max-height: unset;
 }
 
 .ekyct-container--rotate .ekyct-footer,
@@ -105,7 +106,33 @@
     justify-content: center;
     overflow: hidden;
     background: #161619;
-    z-index: 1
+    z-index: 1;
+}
+
+.ekyct-zoom-container {
+    position: absolute;
+    bottom: 2rem;
+    right: 50%;
+    transform: translateX(50%);
+    z-index: 2;
+    width: 60%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: opacity 0.2s ease-out;
+    opacity: 0;
+}
+
+.ekyct-zoom-container input {
+    flex-grow: 1;
+}
+
+.ekyct-zoom-container span {
+    color: #fff;
+}
+
+.ekyct-capture-region:hover .ekyct-zoom-container {
+    opacity: 1;
 }
 
 .ekyct-hide-shader-border .ekyct-shading {
@@ -214,8 +241,6 @@
 .ekyct-video {
     width: 100%;
     display: block;
-    position: absolute;
-    z-index: -2;
 }
 
 .ekyct-alert {

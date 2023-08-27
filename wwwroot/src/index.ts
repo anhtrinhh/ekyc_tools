@@ -5,11 +5,12 @@
  * - Scan and record face
  *
  */
-import { Utils } from './utils';
+import { UI } from './ui/base';
+import { UIElementClasses } from './ui/constants';
 
 window.addEventListener('resize', () => {
-    document.querySelectorAll('div.ekyct-capture-region').forEach(elm => {
-        Utils.handleScreen(elm as HTMLDivElement);
+    document.querySelectorAll(`.${UIElementClasses.CAPTURE_REGION_DIV}`).forEach(elm => {
+        UI.handleOnScreenResize(elm as HTMLDivElement);
     });
 })
 

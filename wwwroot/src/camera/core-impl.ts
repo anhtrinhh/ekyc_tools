@@ -4,12 +4,12 @@
  * 
  */
 
+import { UIElementClasses } from "../ui/constants";
 import {
     Camera,
     CameraCapabilities,
     CameraCapability,
     RangeCameraCapability,
-    CameraRenderingOptions,
     RenderedCamera,
     RenderingCallbacks,
     BooleanCameraCapability
@@ -45,7 +45,7 @@ abstract class AbstractCameraCapability<T> implements CameraCapability<T> {
     public apply(value: T): Promise<void> {
         let constraint: any = {};
         constraint[this.name] = value;
-        let constraints = { advanced: [ constraint ] };
+        let constraints = { advanced: [constraint] };
         return this.track.applyConstraints(constraints);
     }
 
@@ -62,7 +62,7 @@ abstract class AbstractCameraCapability<T> implements CameraCapability<T> {
 
 abstract class AbstractRangeCameraCapability extends AbstractCameraCapability<number> {
     constructor(name: string, track: MediaStreamTrack) {
-       super(name, track);
+        super(name, track);
     }
 
     public min(): number {
@@ -80,7 +80,7 @@ abstract class AbstractRangeCameraCapability extends AbstractCameraCapability<nu
     public apply(value: number): Promise<void> {
         let constraint: any = {};
         constraint[this.name] = value;
-        let constraints = {advanced: [ constraint ]};
+        let constraints = { advanced: [constraint] };
         return this.track.applyConstraints(constraints);
     }
 
@@ -119,7 +119,7 @@ class TorchFeatureImpl extends AbstractCameraCapability<boolean> {
 /** Implementation of {@link CameraCapabilities}. */
 class CameraCapabilitiesImpl implements CameraCapabilities {
     private readonly track: MediaStreamTrack;
-    
+
     constructor(track: MediaStreamTrack) {
         this.track = track;
     }
@@ -128,7 +128,7 @@ class CameraCapabilitiesImpl implements CameraCapabilities {
         return new ZoomFeatureImpl(this.track);
     }
 
-    torchFeature(): BooleanCameraCapability {
+    flashFeature(): BooleanCameraCapability {
         return new TorchFeatureImpl(this.track);
     }
 }
@@ -151,16 +151,15 @@ class RenderedCameraImpl implements RenderedCamera {
         this.mediaStream = mediaStream;
         this.callbacks = callbacks;
 
-        this.surface = this.createVideoElement(this.parentElement.clientWidth);
+        this.surface = this.createVideoElement();
 
         // Setup
         parentElement.append(this.surface);
     }
 
-    private createVideoElement(width: number): HTMLVideoElement {
+    private createVideoElement(): HTMLVideoElement {
         const videoElement = document.createElement("video");
-        videoElement.style.width = `${width}px`;
-        videoElement.style.display = "block";
+        videoElement.className = UIElementClasses.VIDEO;
         videoElement.muted = true;
         videoElement.setAttribute("muted", "true");
         (<any>videoElement).playsInline = true;
@@ -191,20 +190,12 @@ class RenderedCameraImpl implements RenderedCamera {
     static async create(
         parentElement: HTMLElement,
         mediaStream: MediaStream,
-        options: CameraRenderingOptions,
         callbacks: RenderingCallbacks)
         : Promise<RenderedCamera> {
         let renderedCamera = new RenderedCameraImpl(
             parentElement, mediaStream, callbacks);
-        if (options.aspectRatio) {
-            let aspectRatioConstraint = {
-                aspectRatio: options.aspectRatio!
-            };
-            await renderedCamera.getFirstTrackOrFail().applyConstraints(
-                aspectRatioConstraint);
-        }
 
-       renderedCamera.setupSurface();
+        renderedCamera.setupSurface();
         return renderedCamera;
     }
 
@@ -287,15 +278,15 @@ class RenderedCameraImpl implements RenderedCamera {
                 $this.mediaStream.removeTrack(videoTrack);
                 videoTrack.stop();
                 ++tracksClosed;
-    
+
                 if (tracksClosed >= tracksToClose) {
                     $this.isClosed = true;
                     $this.parentElement.removeChild($this.surface);
                     resolve();
                 }
             });
-    
-            
+
+
         });
     }
 
@@ -315,11 +306,10 @@ export class CameraImpl implements Camera {
 
     async render(
         parentElement: HTMLElement,
-        options: CameraRenderingOptions,
         callbacks: RenderingCallbacks)
         : Promise<RenderedCamera> {
         return RenderedCameraImpl.create(
-            parentElement, this.mediaStream, options, callbacks);
+            parentElement, this.mediaStream, callbacks);
     }
 
     static async create(videoConstraints: MediaTrackConstraints)

@@ -49,7 +49,10 @@ export class EkycTools {
                 }).catch(err => {
                     reject(err);
                 });
-            } else resolve(null);
+            } else {
+                if (this.element) document.body.removeChild(this.element);
+                resolve(null);
+            }
         })
     }
 
@@ -90,7 +93,10 @@ export class EkycTools {
                             .catch(err => this.logger.logError(err));
                     })
                 }).catch(err => this.logger.logError(err));
-            })
+            }).catch(err => {
+                this.element?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                this.logger.logError(err);
+            });
         } else {
             UI.setupCamera(captureRegion, videoConstraints)
                 .then(renderedCamera => this.setRenderedCamera(renderedCamera, config.enableFlash, config.zoom))

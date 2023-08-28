@@ -55,24 +55,14 @@ export class UI {
             }
         };
         return new Promise((resolve, reject) => {
-            CameraFactory.failIfNotSupported().then(factory => {
-                factory.create(videoConstraints).then(camera => {
-                    camera.render(parent, renderingCallbacks).then(rCam => {
-                        if (renderedCamera) {
-                            renderedCamera.close().then(() => resolve(rCam));
-                        } else resolve(rCam);
-                    }).catch(err => {
+            if (renderedCamera) {
+                renderedCamera.close()
+                    .then(() => this.renderCamera(parent, container, videoConstraints, renderingCallbacks, resolve, reject))
+                    .catch(err => {
                         container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
                         reject(err);
                     });
-                }).catch(err => {
-                    container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
-                    reject(EkycToolsStrings.errorGettingUserMedia(err));
-                })
-            }).catch(_ => {
-                container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
-                reject(EkycToolsStrings.cameraStreamingNotSupported());
-            })
+            } else this.renderCamera(parent, container, videoConstraints, renderingCallbacks, resolve, reject);
         });
     }
 
@@ -87,6 +77,30 @@ export class UI {
             this.insertShadingElement(parent, videoClientWidth, videoClientHeight, ratio);
             this.insertCanvasElement(parent, videoClientWidth, videoClientHeight);
         }, this.delaySetupUIMs);
+    }
+
+    private static renderCamera(parent: HTMLDivElement,
+        container: Element | null,
+        videoConstraints: MediaTrackConstraints,
+        renderingCallbacks: RenderingCallbacks,
+        resolve: (value: RenderedCamera | PromiseLike<RenderedCamera>) => void,
+        reject: (reason?: any) => void) {
+        CameraFactory.failIfNotSupported().then(factory => {
+            factory.create(videoConstraints).then(camera => {
+                camera.render(parent, renderingCallbacks).then(rCam => {
+                    resolve(rCam);
+                }).catch(err => {
+                    container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                    reject(err);
+                });
+            }).catch(err => {
+                container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                reject(EkycToolsStrings.errorGettingUserMedia(err));
+            });
+        }).catch(_ => {
+            container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+            reject(EkycToolsStrings.cameraStreamingNotSupported());
+        });
     }
 
     private static handleUILoading() {

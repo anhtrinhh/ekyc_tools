@@ -26,12 +26,15 @@
     <script>
         async function handleRecord() {
             var tools = new EkycTools();
-            tools.getVideo({});
+            tools.open({ video: { aspectRatio: 1 }, shadingRatio: 0, zoom: 1.2, canvasMaxWidth: 0, canvasMinWidth: 0 });
         }
 
         async function handleCapture() {
             var tools = new EkycTools(true);
-            tools.getImage({ enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1 });
+            tools.open({
+                enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
+                video: true, shadingRatio: 1.66666667, canvasMaxWidth: 0, canvasMinWidth: 0
+            });
         }
     </script>
 </body>

@@ -14,7 +14,6 @@ export class UI {
     private static shardBorderLargeSize = 40;
     private static shardBorderSmallSize = 5;
     private static delaySetupUIMs = 50;
-    private static testRatio = 1.666667;
     public static createBasicLayout(loadHandlers: UILoadHandler[]) {
         const container = document.createElement('div');
         container.className = UIElementClasses.CONTAINER_DIV;
@@ -33,40 +32,38 @@ export class UI {
         containerInner.appendChild(body);
         containerInner.appendChild(footer);
         container.appendChild(containerInner);
-        container.addEventListener(CustomEventNames.UI_LOADING, this.handleUILoading.bind({ loadHandlers }));
-        container.addEventListener(CustomEventNames.UI_LOADED, this.handleUILoaded.bind({ loadHandlers }));
         return container;
     }
 
     public static handleOnScreenResize(captureRegion: HTMLDivElement) {
+        Utils.closestByClassName(UIElementClasses.CONTAINER_DIV, captureRegion)?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADING));
         setTimeout(() => {
-            this.setupUI(captureRegion, this.testRatio);
+            this.setupUI(captureRegion);
         }, this.delaySetupUIMs);
     }
 
-    public static setupCamera(parent: HTMLDivElement, videoConstraints: MediaTrackConstraints, renderedCamera: RenderedCamera | null = null)
+    public static setupCamera(parent: HTMLDivElement, videoConstraints?: boolean | MediaTrackConstraints, renderedCamera: RenderedCamera | null = null)
         : Promise<RenderedCamera> {
         const container = Utils.closestByClassName(UIElementClasses.CONTAINER_DIV, parent);
         container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADING));
         let renderingCallbacks: RenderingCallbacks = {
             onRenderSurfaceReady: () => {
-                this.setupUI(parent, this.testRatio);
-                container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                this.setupUI(parent);
             }
         };
         return new Promise((resolve, reject) => {
             if (renderedCamera) {
                 renderedCamera.close()
-                    .then(() => this.renderCamera(parent, container, videoConstraints, renderingCallbacks, resolve, reject))
+                    .then(() => this.renderCamera(parent, container, renderingCallbacks, resolve, reject, videoConstraints))
                     .catch(err => {
-                        container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                        container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED, { detail: { error: err } }));
                         reject(err);
                     });
-            } else this.renderCamera(parent, container, videoConstraints, renderingCallbacks, resolve, reject);
+            } else this.renderCamera(parent, container, renderingCallbacks, resolve, reject, videoConstraints);
         });
     }
 
-    public static setupUI(parent: HTMLDivElement, ratio: number) {
+    public static setupUI(parent: HTMLDivElement) {
         const containerInner = Utils.closestByClassName(UIElementClasses.CONTAINER_INNER_DIV, parent) as HTMLDivElement;
         if (containerInner.clientWidth >= containerInner.clientHeight) containerInner.classList.add(UIElementClasses.CONTAINER_INNER_ROTATE_DIV);
         else containerInner.classList.remove(UIElementClasses.CONTAINER_INNER_ROTATE_DIV);
@@ -74,48 +71,38 @@ export class UI {
             const videoEl = Utils.queryByClassName(UIElementClasses.VIDEO, parent);
             const videoClientWidth = videoEl!.clientWidth;
             const videoClientHeight = videoEl!.clientHeight;
-            this.insertShadingElement(parent, videoClientWidth, videoClientHeight, ratio);
+            this.insertShadingElement(parent, videoClientWidth, videoClientHeight);
             this.insertCanvasElement(parent, videoClientWidth, videoClientHeight);
         }, this.delaySetupUIMs);
     }
 
     private static renderCamera(parent: HTMLDivElement,
         container: Element | null,
-        videoConstraints: MediaTrackConstraints,
         renderingCallbacks: RenderingCallbacks,
         resolve: (value: RenderedCamera | PromiseLike<RenderedCamera>) => void,
-        reject: (reason?: any) => void) {
+        reject: (reason?: any) => void,
+        videoConstraints?: boolean | MediaTrackConstraints) {
         CameraFactory.failIfNotSupported().then(factory => {
             factory.create(videoConstraints).then(camera => {
                 camera.render(parent, renderingCallbacks).then(rCam => {
                     resolve(rCam);
                 }).catch(err => {
-                    container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                    container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED, { detail: { error: err } }));
                     reject(err);
                 });
             }).catch(err => {
-                container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED, { detail: { error: err } }));
                 reject(EkycToolsStrings.errorGettingUserMedia(err));
             });
-        }).catch(_ => {
-            container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+        }).catch(err => {
+            container?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED, { detail: { error: err } }));
             reject(EkycToolsStrings.cameraStreamingNotSupported());
         });
     }
 
-    private static handleUILoading() {
-        const obj = this as any;
-        const loadHandlers = obj.loadHandlers as UILoadHandler[];
-        loadHandlers.forEach(handler => handler(true))
-    }
-
-    private static handleUILoaded() {
-        const obj = this as any;
-        const loadHandlers = obj.loadHandlers as UILoadHandler[];
-        loadHandlers.forEach(handler => handler(false))
-    }
-
-    private static insertShadingElement(parent: HTMLDivElement, videoClientWidth: number, videoClientHeight: number, ratio: number) {
+    private static insertShadingElement(parent: HTMLDivElement, videoClientWidth: number, videoClientHeight: number) {
+        let ratio = parseFloat(parent.dataset.shadingRatio ?? '0');
+        if (isNaN(ratio) || ratio < 0) ratio = 0;
         if (ratio > 0) {
             Utils.queryByClassName(UIElementClasses.SHADING_DIV, parent)?.remove();
             let baseHeight = parent.clientHeight > videoClientHeight ? videoClientHeight : parent.clientHeight;
@@ -136,7 +123,6 @@ export class UI {
             this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, true);
             this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, false);
             this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, false);
-            // this.insertCircleRegion(shadingElement);
             parent.appendChild(shadingElement);
             return shadingElement;
         }
@@ -144,9 +130,15 @@ export class UI {
     }
 
     private static insertCanvasElement(parent: HTMLDivElement, videoClientWidth: number, videoClientHeight: number) {
+        let canvasMaxWidth = parseFloat(parent.dataset.canvasMaxWidth ?? '0');
+        if (isNaN(canvasMaxWidth) || canvasMaxWidth < 0) canvasMaxWidth = 0;
+        if (canvasMaxWidth % 2 !== 0) canvasMaxWidth -= 1;
+        let canvasMinWidth = parseFloat(parent.dataset.canvasMinWidth ?? '0');
+        if (isNaN(canvasMinWidth) || canvasMinWidth < 0) canvasMinWidth = 0;
+        if (canvasMinWidth % 2 !== 0) canvasMinWidth += 1;
         const shadingEl = Utils.queryByClassName(UIElementClasses.SHADING_DIV, parent) as HTMLDivElement;
         let borderX = 0, borderY = 0, baseWidth = videoClientWidth,
-            baseHeight = parent.clientHeight > videoClientHeight ? videoClientHeight : parent.clientHeight;;
+            baseHeight = parent.clientHeight > videoClientHeight ? videoClientHeight : parent.clientHeight;
         if (shadingEl) {
             borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2)) * 2;
             borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2)) * 2;
@@ -154,14 +146,22 @@ export class UI {
             baseHeight = parseFloat(shadingEl.style.height.slice(0, -2));
         }
         Utils.queryByClassName(UIElementClasses.CANVAS, parent)?.remove();
-        const width = baseWidth - borderX;
-        const height = baseHeight - borderY;
+        let width = baseWidth - borderX;
+        let height = baseHeight - borderY;
+        if (canvasMaxWidth > 0 && width > canvasMaxWidth) width = canvasMaxWidth;
+        else if (canvasMinWidth > 0 && width < canvasMinWidth) width = canvasMinWidth;
+        width = Math.floor(width);
+        if (width % 2 !== 0) width += 1;
+        if (width === canvasMaxWidth || width === canvasMinWidth) height = width * height / (baseWidth - borderX);
+        height = Math.floor(height);
+        if (height % 2 !== 0) height += 1;
         const canvasElement = document.createElement('canvas');
         canvasElement.className = UIElementClasses.CANVAS;
         canvasElement.style.width = `${width}px`;
         canvasElement.style.height = `${height}px`;
         canvasElement.style.display = "none";
         parent.appendChild(canvasElement);
+        Utils.closestByClassName(UIElementClasses.CONTAINER_DIV, parent)?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED, { detail: { canvas: canvasElement } }));
         return canvasElement;
     }
 

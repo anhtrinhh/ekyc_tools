@@ -312,7 +312,7 @@ export class CameraImpl implements Camera {
             parentElement, this.mediaStream, callbacks);
     }
 
-    static async create(videoConstraints: MediaTrackConstraints)
+    static async create(videoConstraints?: boolean | MediaTrackConstraints)
         : Promise<Camera> {
         if (!navigator.mediaDevices) {
             throw "navigator.mediaDevices not supported";

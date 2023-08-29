@@ -7,6 +7,10 @@ export interface BaseConfig {
     enableFilePicker?: boolean;
     enableFlash?: boolean;
     zoom?: number;
+    recordMs?: number;
+    videoBitsPerSecond?: number;
+    canvasMaxWidth?: number;
+    canvasMinWidth?: number;
     alert?: AlertConfig;
     onStart?: OnStartCallback;
     onStop?: OnStopCallback;

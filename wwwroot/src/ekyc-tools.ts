@@ -6,6 +6,7 @@ import { CustomEventNames, UIElementClasses } from "./ui/constants";
 import { FilePickerUI } from "./ui/file-picker";
 import { SwitchCameraUI } from "./ui/switch-camera";
 import { FlashButton } from "./ui/flash";
+import { CaptureButton } from "./ui/capture";
 import { ZoomUI } from "./ui/zoom";
 import { Utils } from "./utils";
 
@@ -26,7 +27,7 @@ export class EkycTools {
         return CameraRetriever.retrieve();
     }
 
-    public getImage(config: BaseConfig) {
+    public open(config: BaseConfig) {
         this.element = UI.createBasicLayout(this.loadHandlers);
         document.body.appendChild(this.element);
         this.createSectionControlPanel(config);
@@ -60,6 +61,9 @@ export class EkycTools {
         const captureRegion = Utils.queryByClassName(UIElementClasses.CAPTURE_REGION_DIV, this.element!) as HTMLDivElement;
         const footerInner = Utils.queryByClassName(UIElementClasses.FOOTER_INNER_DIV, this.element!) as HTMLDivElement;
         const closeBtn = Utils.queryByClassName(UIElementClasses.CLOSE_BTN, this.element!) as HTMLButtonElement;
+        captureRegion.dataset.shadingRatio = config.shadingRatio!.toString();
+        captureRegion.dataset.canvasMaxWidth = config.canvasMaxWidth!.toString();
+        captureRegion.dataset.canvasMinWidth = config.canvasMinWidth!.toString();
         const handleCloseBtnUILoad: UILoadHandler = (loading: boolean) => {
             if (loading) closeBtn.disabled = true;
             else closeBtn.disabled = false;
@@ -68,27 +72,30 @@ export class EkycTools {
         closeBtn.addEventListener('click', evt => {
             evt.preventDefault();
             this.close();
-        })
-        let accept = 'image/jpeg,image/png,image/webp';
-        if (Utils.instanceOfGetVideoConfig(config)) {
-            accept = 'video/mp4,video/webm,video/mov';
-        } else {
-
-        }
+        });
+        const isRecordConfig = Utils.instanceOfGetVideoConfig(config);
+        let accept = isRecordConfig ? 'video/mp4,video/webm,video/mov' : 'image/jpeg,image/png,image/webp';
+        this.element!.addEventListener(CustomEventNames.UI_LOADING, () => {
+            this.loadHandlers.forEach(handler => handler(true))
+        });
+        this.element!.addEventListener(CustomEventNames.UI_LOADED, evt => {
+            const customEvent = evt as CustomEvent;
+            this.loadHandlers.forEach(handler => handler(false));
+            const canvas = customEvent.detail.canvas as HTMLCanvasElement;
+            if (canvas) CaptureButton.create(footerInner, canvas);
+        });
         if (config.enableFilePicker) FilePickerUI.create(footerInner, accept, this.loadHandlers, config.onStart, config.onStop);
-        let videoConstraints: MediaTrackConstraints = {
-
-        }
         if (config.enableSwitchCamera) {
             CameraRetriever.retrieve().then(devices => {
-                UI.setupCamera(captureRegion, videoConstraints).then(renderedCamera => {
+                UI.setupCamera(captureRegion, config.video).then(renderedCamera => {
                     this.setRenderedCamera(renderedCamera, config.enableFlash, config.zoom);
                     let { deviceId } = renderedCamera.getRunningTrackSettings();
                     SwitchCameraUI.create(footerInner, devices, this.loadHandlers, deviceId);
                     this.element!.addEventListener(CustomEventNames.SWITCH_CAMERA, evt => {
                         const customEvent = evt as CustomEvent;
-                        videoConstraints.deviceId = { exact: customEvent.detail.deviceId };
-                        UI.setupCamera(captureRegion, videoConstraints, this.renderedCamera)
+                        if (typeof config.video === 'boolean') config.video = { deviceId: { exact: customEvent.detail.deviceId } };
+                        else config.video!.deviceId = { exact: customEvent.detail.deviceId };
+                        UI.setupCamera(captureRegion, config.video, this.renderedCamera)
                             .then(renderedCamera => this.setRenderedCamera(renderedCamera, config.enableFlash, config.zoom))
                             .catch(err => this.logger.logError(err));
                     })
@@ -98,7 +105,7 @@ export class EkycTools {
                 this.logger.logError(err);
             });
         } else {
-            UI.setupCamera(captureRegion, videoConstraints)
+            UI.setupCamera(captureRegion, config.video)
                 .then(renderedCamera => this.setRenderedCamera(renderedCamera, config.enableFlash, config.zoom))
                 .catch(err => this.logger.logError(err));
         }

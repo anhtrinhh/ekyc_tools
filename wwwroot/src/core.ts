@@ -11,15 +11,16 @@ export interface BaseConfig {
     videoBitsPerSecond?: number;
     canvasMaxWidth?: number;
     canvasMinWidth?: number;
-    alert?: AlertConfig;
     onStart?: OnStartCallback;
     onStop?: OnStopCallback;
     onError?: OnErrorCallback;
+    onOpen?: OnOpen;
 }
 
-export interface OnStartCallback { (): void }
-export interface OnStopCallback { (result?: BaseResult | null): void }
-export interface OnErrorCallback { (reason?: any): void }
+export type OnOpen = () => void;
+export type OnStartCallback = () => void;
+export type OnStopCallback = (result?: BaseResult | null) => void;
+export type OnErrorCallback = (reason?: any) => void;
 
 
 export interface AlertConfig {
@@ -27,8 +28,6 @@ export interface AlertConfig {
     classList?: string[];
     title?: string;
     enableClose?: boolean;
-    openWhen: 'start' | 'stop' | 'error',
-    removeWhen: 'start' | 'stop' | 'error',
     displayTimeout?: number;
     parentSelector?: string;
 }

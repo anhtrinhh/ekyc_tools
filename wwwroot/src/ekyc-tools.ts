@@ -1,6 +1,6 @@
 import { CameraCapabilities, RenderedCamera } from "./camera/core";
 import { CameraRetriever } from "./camera/retriever";
-import { BaseConfig, BaseLoggger, Logger } from "./core";
+import { AlertConfig, BaseConfig, BaseLoggger, Logger } from "./core";
 import { UI, UILoadHandler } from "./ui/base";
 import { CustomEventNames, UIElementClasses } from "./ui/constants";
 import { FilePickerUI } from "./ui/file-picker";
@@ -8,6 +8,7 @@ import { SwitchCameraUI } from "./ui/switch-camera";
 import { FlashButton } from "./ui/flash";
 import { CaptureButton } from "./ui/capture";
 import { ZoomUI } from "./ui/zoom";
+import { RecordUI } from "./ui/record";
 import { Utils } from "./utils";
 
 export class EkycTools {
@@ -16,6 +17,7 @@ export class EkycTools {
     private loadHandlers: UILoadHandler[] = [];
     private flashButton: FlashButton | null = null;
     private zoomInput: ZoomUI | null = null;
+    private recordUI: RecordUI | null = null;
     public element: HTMLDivElement | null = null;
     private renderedCamera: RenderedCamera | null = null;
     constructor(verbose?: boolean) {
@@ -27,9 +29,14 @@ export class EkycTools {
         return CameraRetriever.retrieve();
     }
 
+    public addAlert(config: AlertConfig) {
+        if (this.element) UI.addAlert(this.element, config);
+    }
+
     public open(config: BaseConfig) {
         this.element = UI.createBasicLayout(this.loadHandlers);
         document.body.appendChild(this.element);
+        if (config.onOpen) config.onOpen();
         this.createSectionControlPanel(config);
     }
 
@@ -48,6 +55,7 @@ export class EkycTools {
                     if (this.element) document.body.removeChild(this.element);
                     resolve(null);
                 }).catch(err => {
+                    this.logger.logError(err);
                     reject(err);
                 });
             } else {
@@ -76,19 +84,25 @@ export class EkycTools {
         const isRecordConfig = Utils.instanceOfGetVideoConfig(config);
         let accept = isRecordConfig ? 'video/mp4,video/webm,video/mov' : 'image/jpeg,image/png,image/webp';
         this.element!.addEventListener(CustomEventNames.UI_LOADING, () => {
-            this.loadHandlers.forEach(handler => handler(true))
+            this.loadHandlers.forEach(handler => handler(true));
+            if (!isRecordConfig) {
+                const captureButton = Utils.queryByClassName(UIElementClasses.CAPTURE_BTN, this.element!) as HTMLButtonElement;
+                if (captureButton) captureButton.disabled = true;
+            }
         });
         this.element!.addEventListener(CustomEventNames.UI_LOADED, evt => {
             const customEvent = evt as CustomEvent;
             this.loadHandlers.forEach(handler => handler(false));
             const canvas = customEvent.detail.canvas as HTMLCanvasElement;
-            if (canvas) CaptureButton.create(footerInner, canvas);
+            const { error } = customEvent.detail;
+            if (canvas && !isRecordConfig) CaptureButton.create(footerInner, captureRegion, config.onStart, config.onStop, config.onError);
+            if (error && config.onError) config.onError(error);
         });
         if (config.enableFilePicker) FilePickerUI.create(footerInner, accept, this.loadHandlers, config.onStart, config.onStop);
         if (config.enableSwitchCamera) {
             CameraRetriever.retrieve().then(devices => {
                 UI.setupCamera(captureRegion, config.video).then(renderedCamera => {
-                    this.setRenderedCamera(renderedCamera, config.enableFlash, config.zoom);
+                    this.setRenderedCamera(renderedCamera, config);
                     let { deviceId } = renderedCamera.getRunningTrackSettings();
                     SwitchCameraUI.create(footerInner, devices, this.loadHandlers, deviceId);
                     this.element!.addEventListener(CustomEventNames.SWITCH_CAMERA, evt => {
@@ -96,7 +110,7 @@ export class EkycTools {
                         if (typeof config.video === 'boolean') config.video = { deviceId: { exact: customEvent.detail.deviceId } };
                         else config.video!.deviceId = { exact: customEvent.detail.deviceId };
                         UI.setupCamera(captureRegion, config.video, this.renderedCamera)
-                            .then(renderedCamera => this.setRenderedCamera(renderedCamera, config.enableFlash, config.zoom))
+                            .then(renderedCamera => this.setRenderedCamera(renderedCamera, config))
                             .catch(err => this.logger.logError(err));
                     })
                 }).catch(err => this.logger.logError(err));
@@ -106,16 +120,35 @@ export class EkycTools {
             });
         } else {
             UI.setupCamera(captureRegion, config.video)
-                .then(renderedCamera => this.setRenderedCamera(renderedCamera, config.enableFlash, config.zoom))
+                .then(renderedCamera => this.setRenderedCamera(renderedCamera, config))
                 .catch(err => this.logger.logError(err));
         }
     }
 
-    private setRenderedCamera(renderedCamera: RenderedCamera, enableFlash?: boolean, zoom?: number) {
+    private setRenderedCamera(renderedCamera: RenderedCamera, config: BaseConfig) {
         this.renderedCamera = renderedCamera;
         const cameraCapabilities = renderedCamera.getCapabilities();
-        if (enableFlash) this.createAndShowFlashButtonIfSupported(cameraCapabilities)
-        this.renderCameraZoomUiIfSupported(cameraCapabilities, zoom);
+        if (config.enableFlash) this.createAndShowFlashButtonIfSupported(cameraCapabilities)
+        this.renderCameraZoomUiIfSupported(cameraCapabilities, config.zoom);
+        this.createAndShowRecordUI(renderedCamera.getStream(), config);
+    }
+
+    private createAndShowRecordUI(stream: MediaStream, config: BaseConfig) {
+        const isRecordConfig = Utils.instanceOfGetVideoConfig(config);
+        if (isRecordConfig) {
+            if (!this.recordUI) {
+                const footerInner = Utils.queryByClassName(UIElementClasses.FOOTER_INNER_DIV, this.element!) as HTMLElement;
+                const captureRegion = Utils.queryByClassName(UIElementClasses.CAPTURE_REGION_DIV, this.element!) as HTMLElement;
+                this.recordUI = RecordUI.create(
+                    footerInner,
+                    captureRegion, this.loadHandlers, {
+                    recordMs: config.recordMs,
+                    videoBitsPerSecond: config.videoBitsPerSecond
+                }, config.onStart, config.onStop, config.onError);
+            }
+            this.recordUI.setStream(stream);
+            this.recordUI.show();
+        }
     }
 
     private createAndShowFlashButtonIfSupported(cameraCapabilities: CameraCapabilities) {

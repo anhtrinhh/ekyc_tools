@@ -241,6 +241,10 @@ class RenderedCameraImpl implements RenderedCamera {
         return this.surface.paused;
     }
 
+    public getStream(): MediaStream {
+        return this.mediaStream;
+    }
+
     public getSurface(): HTMLVideoElement {
         this.failIfClosed();
         return this.surface;

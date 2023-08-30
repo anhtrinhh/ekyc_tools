@@ -26,14 +26,45 @@
     <script>
         async function handleRecord() {
             var tools = new EkycTools();
-            tools.open({ video: { aspectRatio: 1 }, shadingRatio: 0, zoom: 1.2, canvasMaxWidth: 0, canvasMinWidth: 0 });
+            tools.open({
+                video: { aspectRatio: 1, width: 1440 , height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 8000,
+                onError: reason => console.log(reason),
+                onStart: () => console.log('Start capture'),
+                onStop: rs => {
+                    console.log(rs)
+                    if (rs) {
+                        const videoEl = document.getElementById('video-id');
+                        const url = URL.createObjectURL(rs.blob);
+                        videoEl.controls = true;
+                        videoEl.muted = true;
+                        videoEl.src = url;
+                        videoEl.onload = () => {
+                            URL.revokeObjectURL(url);
+                        };
+                        tools.close();
+                    }
+                }
+            });
         }
 
         async function handleCapture() {
             var tools = new EkycTools(true);
             tools.open({
                 enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
-                video: true, shadingRatio: 1.66666667, canvasMaxWidth: 0, canvasMinWidth: 0
+                video: true, shadingRatio: 1.66666667, canvasMaxWidth: 0, canvasMinWidth: 0,
+                onError: reason => console.log(reason),
+                onStart: () => console.log('Start capture'),
+                onStop: rs => {
+                    if (rs) {
+                        const img = document.getElementById('img-id');
+                        const url = URL.createObjectURL(rs.blob);
+                        img.src = url;
+                        img.onload = () => {
+                            URL.revokeObjectURL(url);
+                        };
+                        tools.close();
+                    }
+                }
             });
         }
     </script>

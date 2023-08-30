@@ -5,12 +5,14 @@ import { RenderedCamera, RenderingCallbacks } from "../camera/core";
 import { EkycToolsStrings } from "../strings";
 import { CustomEventNames, UIElementClasses } from './constants';
 import { LoaderUI } from "./loader";
+import { AlertConfig } from "../core";
 
 export interface UILoadHandler {
     (loading: boolean): void
 }
 
 export class UI {
+    private static insertAlertTimeout: any = null;
     private static shardBorderLargeSize = 40;
     private static shardBorderSmallSize = 5;
     private static delaySetupUIMs = 50;
@@ -74,6 +76,149 @@ export class UI {
             this.insertShadingElement(parent, videoClientWidth, videoClientHeight);
             this.insertCanvasElement(parent, videoClientWidth, videoClientHeight);
         }, this.delaySetupUIMs);
+    }
+
+    public static getCapture(captureRegion: HTMLElement): Promise<Blob | null> {
+        return new Promise((resolve, reject) => {
+            const canvas = Utils.queryByClassName(UIElementClasses.CANVAS, captureRegion) as HTMLCanvasElement;
+            const video = Utils.queryByClassName(UIElementClasses.VIDEO, captureRegion) as HTMLVideoElement;
+            if (video && canvas) {
+                const canvasContext = (<any>canvas).getContext("2d", { willReadFrequently: true });
+                const shadingEl = Utils.queryByClassName(UIElementClasses.SHADING_DIV, captureRegion) as HTMLDivElement;
+                let borderX = 0, borderY = 0, baseWidth = video.clientWidth,
+                    baseHeight = captureRegion.clientHeight > video.clientHeight ? video.clientHeight : captureRegion.clientHeight;
+                if (shadingEl) {
+                    borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
+                    borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2));
+                    baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
+                    baseHeight = parseFloat(shadingEl.style.height.slice(0, -2));
+                }
+                const qrRegionWidth = baseWidth - borderX * 2;
+                const qrRegionHeight = baseHeight - borderY * 2;
+                const widthRatio = video.videoWidth / video.clientWidth;
+                const heightRatio = video.videoHeight / video.clientHeight;
+                let offsetY = 0;
+                if (video.clientHeight > baseHeight) offsetY = (video.clientHeight - baseHeight) / 2
+                const sxOffset = Math.round(borderX * widthRatio);
+                const syOffset = Math.round((borderY + offsetY) * heightRatio);
+                let sWidthOffset = Math.round(qrRegionWidth * widthRatio);
+                let sHeightOffset = Math.round(qrRegionHeight * heightRatio);
+                if (sWidthOffset % 2 !== 0) sWidthOffset -= 1;
+                if (sHeightOffset % 2 !== 0) sHeightOffset -= 1;
+                const canvasWidth = parseInt(canvas.style.width.slice(0, -2));
+                const canvasHeight = parseInt(canvas.style.height.slice(0, -2));
+                canvasContext.canvas.width = canvasWidth;
+                canvasContext.canvas.height = canvasHeight;
+                canvasContext.drawImage(video, sxOffset, syOffset, sWidthOffset, sHeightOffset, 0, 0, canvasWidth, canvasHeight);
+                this.getBlobFromCanvas(canvas, 'image/png').then(rs => {
+                    resolve(rs);
+                }).catch(err => {
+                    reject(err);
+                })
+            } else reject('Video element is not exists.');
+        });
+    }
+
+    public static getBlobFromCanvas(canvasElement: HTMLCanvasElement, mimeType: string): Promise<Blob | null> {
+        return new Promise(resolve => {
+            canvasElement.toBlob(blob => resolve(blob), mimeType);
+        })
+    }
+
+    public static addAlert(container: HTMLElement, config: AlertConfig) {
+        let parentEl = Utils.queryByClassName(UIElementClasses.CAPTURE_REGION_DIV, container);
+        if (config.parentSelector) {
+            let newParent = container.querySelector(config.parentSelector);
+            if (newParent) parentEl = newParent;
+        }
+        if (parentEl) {
+            let alertEl = parentEl.querySelector('.ekyct-alert');
+            if (alertEl) {
+                if (this.getAlertContent(alertEl) !== config.content) {
+                    if (alertEl.classList.contains('active') && !this.insertAlertTimeout) alertEl.classList.remove('active');
+                    if (!this.insertAlertTimeout) {
+                        this.setAlertContent(alertEl, config.content);
+                        if (typeof config.displayTimeout === 'number' && config.displayTimeout >= 1000) this.setInsertAlertTimeout(alertEl, config.displayTimeout + 200, 200);
+                        else alertEl.classList.add('active');
+                    }
+                }
+            } else {
+                alertEl = this.createAlertElement(config.content, config.title, config.classList, config.enableClose);
+                parentEl.appendChild(alertEl);
+                if (!alertEl.classList.contains('active') && !this.insertAlertTimeout) {
+                    this.setAlertContent(alertEl, config.content);
+                    if (typeof config.displayTimeout === 'number' && config.displayTimeout >= 1000) this.setInsertAlertTimeout(alertEl!, config.displayTimeout! + 20, 20);
+                    else alertEl.classList.add('active');
+                }
+            }
+        }
+    }
+
+    private static createAlertElement(content?: string, title?: string, classList?: string[], allowClose?: boolean) {
+        const alertEl = document.createElement('div');
+        let classes = ['ekyct-alert'];
+        if ((typeof title === 'string' && title.trim().length > 0) || (typeof allowClose === 'boolean' && allowClose)) {
+            const alertHeader = document.createElement('div');
+            alertHeader.className = 'ekyct-alert-header';
+            if (typeof title === 'string') {
+                title = title.trim();
+                const alertTitle = document.createElement('div');
+                alertTitle.className = 'ekyct-alert-title';
+                alertHeader.appendChild(alertTitle);
+                alertTitle.innerHTML = title;
+                classes.push('ekyct-alert-column');
+            }
+            if (typeof allowClose === 'boolean' && allowClose) {
+                const closeButton = document.createElement('button');
+                closeButton.className = 'ekyct-btn ekyct-alert-close-btn';
+                closeButton.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>';
+                closeButton.addEventListener('click', evt => {
+                    evt.preventDefault();
+                    alertEl.classList.remove('active');
+                }, { once: true });
+                alertHeader.appendChild(closeButton);
+            }
+            alertEl.appendChild(alertHeader);
+        }
+        const alertBody = document.createElement('div');
+        alertBody.className = 'ekyct-alert-body';
+        alertEl.appendChild(alertBody);
+        if (Array.isArray(classList) && classList.length > 0) classes = [...classes, ...classList];
+        if (typeof content === 'string' && content.trim().length > 0) {
+            content = content.trim();
+            alertBody.innerHTML = content;
+        }
+        alertEl.classList.add(...classes);
+        return alertEl;
+    }
+
+    private static getAlertContent(alertEl: Element) {
+        const alertBody = alertEl.querySelector('.ekyct-alert-body');
+        if (alertBody) return alertBody.innerHTML;
+        return '';
+    }
+
+    private static setAlertContent(alertEl: Element, content?: string) {
+        if (typeof content === 'string' && content.trim().length > 0) {
+            const alertBody = alertEl.querySelector('.ekyct-alert-body');
+            if (alertBody) alertBody.innerHTML = content;
+        }
+    }
+
+    private static setInsertAlertTimeout(alertEl: Element, innerTimeoutms: number, outerTimeoutMs: number) {
+        this.insertAlertTimeout = setTimeout(() => {
+            alertEl.classList.add('active');
+            setTimeout(() => {
+                this.clearInsertAlertTimeout();
+            }, innerTimeoutms);
+        }, outerTimeoutMs);
+    }
+
+    private static clearInsertAlertTimeout() {
+        if (this.insertAlertTimeout) {
+            clearTimeout(this.insertAlertTimeout);
+            this.insertAlertTimeout = null;
+        }
     }
 
     private static renderCamera(parent: HTMLDivElement,

@@ -20,6 +20,7 @@ export class UIElementClasses {
     static LOADER_DIV = 'ekyct-loader';
     static ZOOM_CONTAINER_DIV = 'ekyct-zoom-container';
     static LOADER_CONTENT_DIV = 'ekyct-loader-content';
+    static CIRCULAR_PROGRESS = 'ekyct-circular-progress';
     static DNONE = 'ekyct-dnone';
 }
 

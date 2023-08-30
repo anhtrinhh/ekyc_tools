@@ -24,7 +24,7 @@ export interface CameraCapability<T> {
 }
 
 /** Capability of the camera that has range. */
-export interface RangeCameraCapability extends CameraCapability<number> {  
+export interface RangeCameraCapability extends CameraCapability<number> {
   /** Min value allowed for this capability. */
   min(): number;
 
@@ -36,7 +36,7 @@ export interface RangeCameraCapability extends CameraCapability<number> {
 }
 
 /** Capability of camera that is boolean in nature. */
-export interface BooleanCameraCapability extends CameraCapability<boolean> {}  
+export interface BooleanCameraCapability extends CameraCapability<boolean> { }
 
 /** Class exposing different capabilities of camera. */
 export interface CameraCapabilities {
@@ -64,12 +64,18 @@ export interface RenderingCallbacks {
  */
 export interface RenderedCamera {
   /**
+     * Returns the media stream
+     * 
+     */
+  getStream(): MediaStream;
+
+  /**
    * Returns the video surface.
    * 
    * @throws error if method is called when scanner is not in scanning state.
    */
   getSurface(): HTMLVideoElement;
-  
+
   /**
    * Pauses the camera feed.
    * 

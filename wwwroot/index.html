@@ -24,10 +24,45 @@
     <button onclick="handleCapture()">Take photo</button>
     <button onclick="handleRecord()">Take video</button>
     <script>
+        function removeAccent(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        }
+        async function getCameraDevicesByType() {
+            const cameraDevices = await EkycTools.getCameraDevices();
+            const others = [];
+            const backs = [];
+            const fronts = [];
+            for (let i = 0; i < cameraDevices.length; i++) {
+                const device = cameraDevices[i];
+                const label = removeAccent(device.label).toLowerCase();
+                if (/(rear|back|sau)/.test(label) && !/(tele|ultra|dual|triple|chup|xa|cuc|rong|kep)/.test(label) && !/^(hai|ba)\s/.test(label)) {
+                    if (backs.length === 0) backs.push(device);
+                    else {
+                        if (label.includes('0')) {
+                            others.push(backs[0]);
+                            backs[0] = device;
+                        } else others.push(device);
+                    }
+                } else if (/(front|truoc)/.test(label) && !/(tele|ultra|dual|triple|chup|xa|cuc|rong|kep)/.test(label) && !/^(hai|ba)\s/.test(label)) {
+                    if (fronts.length === 0) fronts.push(device);
+                    else {
+                        if (label.includes('1')) {
+                            others.push(fronts[0]);
+                            fronts[0] = device;
+                        } else others.push(device);
+                    }
+                } else others.push(device);
+            }
+            return {
+                backs,
+                fronts,
+                others
+            };
+        }
         async function handleRecord() {
             var tools = new EkycTools();
             tools.open({
-                video: { aspectRatio: 1, width: 1440 , height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 8000,
+                video: { aspectRatio: 1, width: 1440, height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 8000,
                 onError: reason => console.log(reason),
                 onStart: () => console.log('Start capture'),
                 onStop: rs => {
@@ -48,24 +83,29 @@
         }
 
         async function handleCapture() {
-            var tools = new EkycTools(true);
-            tools.open({
-                enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
-                video: true, shadingRatio: 1.66666667, canvasMaxWidth: 0, canvasMinWidth: 0,
-                onError: reason => console.log(reason),
-                onStart: () => console.log('Start capture'),
-                onStop: rs => {
-                    if (rs) {
-                        const img = document.getElementById('img-id');
-                        const url = URL.createObjectURL(rs.blob);
-                        img.src = url;
-                        img.onload = () => {
-                            URL.revokeObjectURL(url);
-                        };
-                        tools.close();
+            getCameraDevicesByType().then(rs => {
+                let deviceId;
+                if (rs.backs.length > 0) deviceId = rs.backs[0].id;
+                else if (rs.others.length > 0) deviceId = rs.others[0].id;
+                var tools = new EkycTools(true);
+                tools.open({
+                    enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
+                    video: { width: 1920, height: 1080, deviceId }, shadingRatio: 1.66666667, canvasMaxWidth: 1920, canvasMinWidth: 1280,
+                    onError: reason => console.log(reason),
+                    onStart: () => console.log('Start capture'),
+                    onStop: rs => {
+                        if (rs) {
+                            const img = document.getElementById('img-id');
+                            const url = URL.createObjectURL(rs.blob);
+                            img.src = url;
+                            img.onload = () => {
+                                URL.revokeObjectURL(url);
+                            };
+                            tools.close();
+                        }
                     }
-                }
-            });
+                });
+            })
         }
     </script>
 </body>

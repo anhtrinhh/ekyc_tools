@@ -95,6 +95,7 @@
                     onStart: () => console.log('Start capture'),
                     onStop: rs => {
                         if (rs) {
+                            alert(JSON.stringify(rs))
                             const img = document.getElementById('img-id');
                             const url = URL.createObjectURL(rs.blob);
                             img.src = url;

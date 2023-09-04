@@ -5,11 +5,12 @@ export class Utils {
     public static getFileExtensions(contentType: string) {
         contentType = contentType.toLowerCase();
         if (contentType.startsWith('image/png')) return '.png';
-        else if (contentType.startsWith('image/jpeg')) return '.jpg';
         else if (contentType.startsWith('image/webp')) return '.webp';
+        else if (contentType.startsWith('image/jpeg')) return '.jpg';
+        else if (contentType.startsWith('video/webm')) return '.webm';
+        else if (contentType.startsWith('video/mp4')) return '.mp4';
         else if (contentType.startsWith('video/quicktime')) return '.mov';
         else if (contentType.startsWith('video/x-matroska')) return '.mkv';
-        else if (contentType.startsWith('video/webm')) return '.webm';
         else if (contentType.startsWith('video/mpeg') || contentType.startsWith('video/mp1s')
             || contentType.startsWith('video/mp2p')) return '.mpg';
         else return '.webm';

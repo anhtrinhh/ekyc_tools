@@ -21,6 +21,8 @@ export class UIElementClasses {
     static ZOOM_CONTAINER_DIV = 'ekyct-zoom-container';
     static LOADER_CONTENT_DIV = 'ekyct-loader-content';
     static CIRCULAR_PROGRESS = 'ekyct-circular-progress';
+    static CIRCULAR_PROGRESS_DIV = 'ekyct-circle-region';
+    static CIRCULAR_PROGRESS_POINT_DIV = 'ekyct-circle-region-point';
     static DNONE = 'ekyct-dnone';
 }
 

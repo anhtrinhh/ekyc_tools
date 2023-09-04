@@ -68,6 +68,8 @@
                 onStop: rs => {
                     console.log(rs)
                     if (rs) {
+                        alert(JSON.stringify(rs))
+                        
                         const videoEl = document.getElementById('video-id');
                         const url = URL.createObjectURL(rs.blob);
                         videoEl.controls = true;
@@ -76,6 +78,14 @@
                         videoEl.onload = () => {
                             URL.revokeObjectURL(url);
                         };
+
+                        const img = document.getElementById('img-id');
+                        const imgUrl = URL.createObjectURL(rs.poster.blob);
+                        img.src = imgUrl;
+                        img.onload = () => {
+                            URL.revokeObjectURL(imgUrl);
+                        };
+
                         tools.close();
                     }
                 }

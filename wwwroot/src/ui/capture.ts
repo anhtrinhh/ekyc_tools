@@ -30,9 +30,9 @@ export class CaptureButton {
                     if (rs) {
                         this.onStop({
                             blob: rs,
-                            contentName: `${Utils.newGuid()}.png`,
+                            contentName: `${Utils.newGuid()}${Utils.getFileExtensions(rs.type)}`,
                             contentLength: rs.size,
-                            contentType: 'image/png'
+                            contentType: rs.type
                         })
                     } else this.onStop(null);
                 }

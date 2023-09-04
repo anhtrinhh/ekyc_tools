@@ -1,294 +1,25 @@
 import { Logger } from "./core";
 
 export class Utils {
-    private static insertAlertTimeout: any = null;
-    public static shardBorderLargeSize = 40;
-    public static shardBorderSmallSize = 5;
-    public static handleScreen(captureRegion: HTMLDivElement) {
-        const bodyEl = captureRegion.closest('.ekyct-body') as HTMLDivElement;
-        if (bodyEl) bodyEl.style.height = '100%';
-        // setTimeout để fix lỗi iphone quay màn hình
-        setTimeout(() => {
-            const container = captureRegion.closest('.ekyct-container--inner') as HTMLDivElement;
-            if (container.clientWidth >= container.clientHeight) container.classList.add('ekyct-container--rotate');
-            else container.classList.remove('ekyct-container--rotate');
-            if (captureRegion) {
-                const ratio = parseFloat(captureRegion.dataset['shadingRatio'] || '0')
-                const shardingEl = this.insertShadingElement(captureRegion, ratio);
-                this.insertCanvasElement(captureRegion);
-                if (shardingEl) {
-                    const header = container.querySelector('.ekyct-header') as HTMLDivElement;
-                    const shadingElHeight = parseFloat(shardingEl.style.height.slice(0, -2))
-                    if (header && container.classList.contains('ekyct-container--rotate')) header.style.height = `${shadingElHeight}px`;
-                    else header.style.height = 'unset';
-                }
-            }
-        }, 100);
-    }
 
-    private static insertCanvasElement(parent: HTMLDivElement) {
-        const shadingEl = parent.querySelector('.ekyct-shading') as HTMLDivElement;
-        const videoEl = parent.querySelector('.ekyct-video');
-        if (videoEl) {
-            let borderX = 0, borderY = 0, baseWidth = parent.clientWidth,
-                baseHeight = this.getCaptureRegionHeight(parent);
-            if (shadingEl) {
-                borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2)) * 2;
-                borderY = parseFloat(shadingEl.style.borderTopWidth.slice(0, -2)) * 2;
-                baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
-                baseHeight = parseFloat(shadingEl.style.height.slice(0, -2));
-            }
-            parent.querySelector('.ekyct-canvas')?.remove();
-            const width = baseWidth - borderX;
-            const height = baseHeight - borderY;
-            const canvasElement = document.createElement('canvas');
-            canvasElement.className = 'ekyct-canvas';
-            canvasElement.style.width = `${width}px`;
-            canvasElement.style.height = `${height}px`;
-            canvasElement.style.display = "none";
-            parent.appendChild(canvasElement);
-            return canvasElement;
-        }
-        return null;
-    }
+    public static getFileExtensions(contentType: string) {
+        contentType = contentType.toLowerCase();
+        if (contentType.startsWith('image/png')) return '.png';
+        else if (contentType.startsWith('image/jpeg')) return '.jpg';
+        else if (contentType.startsWith('image/webp')) return '.webp';
+        else if (contentType.startsWith('video/quicktime')) return '.mov';
+        else if (contentType.startsWith('video/x-matroska')) return '.mkv';
+        else if (contentType.startsWith('video/webm')) return '.webm';
+        else if (contentType.startsWith('video/mpeg') || contentType.startsWith('video/mp1s')
+            || contentType.startsWith('video/mp2p')) return '.mpg';
+        else return '.webm';
 
-    private static insertShadingElement(parent: HTMLDivElement, rate: number) {
-        const videoEl = parent.querySelector('.ekyct-video') as HTMLVideoElement;
-        if (videoEl && rate > 0) {
-            parent.querySelector('.ekyct-shading')?.remove();
-            let baseWidth = videoEl.clientWidth;
-            let baseHeight = this.getCaptureRegionHeight(parent);
-            const shadingElement = document.createElement("div");
-            shadingElement.className = 'ekyct-shading';
-            shadingElement.style.width = `${baseWidth}px`;
-            shadingElement.style.height = `${baseHeight}px`;
-            const borderSize = this.getShadingBorderSize(baseWidth, baseHeight, rate);
-            shadingElement.style.borderLeftWidth = `${borderSize.borderX}px`;
-            shadingElement.style.borderRightWidth = `${borderSize.borderX}px`;
-            shadingElement.style.borderTopWidth = `${borderSize.borderY}px`;
-            shadingElement.style.borderBottomWidth = `${borderSize.borderY}px`;
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, false);
-            this.insertCircleRegion(shadingElement);
-            parent.appendChild(shadingElement);
-            return shadingElement;
-        }
-        return null;
-    }
-
-    private static insertShaderBorders(
-        shaderElem: HTMLDivElement,
-        width: number,
-        height: number,
-        top: number | null,
-        bottom: number | null,
-        side: number,
-        isLeft: boolean) {
-        const elem = document.createElement("div");
-        elem.className = 'ekyct-shader-border';
-        elem.style.width = `${width}px`;
-        elem.style.height = `${height}px`;
-        if (top !== null) {
-            elem.style.top = `${top}px`;
-        }
-        if (bottom !== null) {
-            elem.style.bottom = `${bottom}px`;
-        }
-        if (isLeft) {
-            elem.style.left = `${side}px`;
-        } else {
-            elem.style.right = `${side}px`;
-        }
-        shaderElem.appendChild(elem);
-    }
-
-    private static getShadingBorderSize(baseWidth: number, baseHeight: number, rate: number) {
-        const [width, height] = Utils.adjustExactRatio([baseWidth, baseHeight, rate]);
-        let borderX = (baseWidth - width) / 2;
-        let borderY = (baseHeight - height) / 2;
-        if (borderY < this.shardBorderSmallSize * 3) {
-            borderX += this.shardBorderSmallSize * 3 - borderY;
-            borderY = this.shardBorderSmallSize * 3;
-        }
-        if (borderX < this.shardBorderSmallSize * 3) {
-            borderY += this.shardBorderSmallSize * 3 - borderX;
-            borderX = this.shardBorderSmallSize * 3;
-        }
-        return {
-            borderX,
-            borderY
-        };
-    }
-
-    public static cleanAlert(parentEl: HTMLDivElement) {
-        let alertEl = parentEl.querySelector('.ekyct-alert');
-        if (alertEl && alertEl.classList.contains('active')) {
-            if (Utils.insertAlertTimeout) {
-                setTimeout(() => {
-                    alertEl!.classList.remove('active');
-                    setTimeout(() => {
-                        alertEl!.remove();
-                    }, 200);
-                }, 400);
-            } else {
-                alertEl.classList.remove('active');
-                setTimeout(() => {
-                    alertEl!.remove();
-                }, 200);
-            }
-        }
-    }
-
-    public static insertAlert(parentEl: HTMLDivElement, content?: string, classList?: string[], title?: string, allowClose?: boolean, displayTimeout: number = 2000) {
-        if (parentEl) {
-            let alertEl = parentEl.querySelector('.ekyct-alert');
-            if (alertEl) {
-                if (this.getAlertContent(alertEl) !== content) {
-                    // if (Array.isArray(classList) && classList.length > 0) alertEl.classList.add(...classList);
-                    if (alertEl.classList.contains('active') && !Utils.insertAlertTimeout) alertEl.classList.remove('active');
-                    if (!Utils.insertAlertTimeout) {
-                        this.setAlertContent(alertEl, content);
-                        if (typeof displayTimeout === 'number' && displayTimeout >= 1000) Utils.setInsertAlertTimeout(alertEl, displayTimeout + 200, 200);
-                        else alertEl.classList.add('active');
-                    }
-                }
-            } else {
-                alertEl = this.createAlertElement(content, title, classList, allowClose);
-                parentEl.appendChild(alertEl);
-                if (!alertEl.classList.contains('active') && !Utils.insertAlertTimeout) {
-                    this.setAlertContent(alertEl, content);
-                    if (typeof displayTimeout === 'number' && displayTimeout >= 1000) Utils.setInsertAlertTimeout(alertEl, displayTimeout + 20, 20);
-                    else alertEl.classList.add('active');
-                }
-            }
-        }
-    }
-
-    private static createAlertElement(content?: string, title?: string, classList?: string[], allowClose?: boolean) {
-        const alertEl = document.createElement('div');
-        let classes = ['ekyct-alert'];
-        if ((typeof title === 'string' && title.trim().length > 0) || (typeof allowClose === 'boolean' && allowClose)) {
-            const alertHeader = document.createElement('div');
-            alertHeader.className = 'ekyct-alert-header';
-            if (typeof title === 'string') {
-                title = title.trim();
-                const alertTitle = document.createElement('div');
-                alertTitle.className = 'ekyct-alert-title';
-                alertHeader.appendChild(alertTitle);
-                alertTitle.innerHTML = title;
-                classes.push('ekyct-alert-column');
-            }
-            if (typeof allowClose === 'boolean' && allowClose) {
-                const closeButton = document.createElement('button');
-                closeButton.className = 'ekyct-btn ekyct-alert-close-btn';
-                closeButton.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>';
-                closeButton.addEventListener('click', evt => {
-                    evt.preventDefault();
-                    alertEl.classList.remove('active');
-                }, { once: true });
-                alertHeader.appendChild(closeButton);
-            }
-            alertEl.appendChild(alertHeader);
-        }
-        const alertBody = document.createElement('div');
-        alertBody.className = 'ekyct-alert-body';
-        alertEl.appendChild(alertBody);
-        if (Array.isArray(classList) && classList.length > 0) classes = [...classes, ...classList];
-        if (typeof content === 'string' && content.trim().length > 0) {
-            content = content.trim();
-            alertBody.innerHTML = content;
-        }
-        alertEl.classList.add(...classes);
-        return alertEl;
-    }
-
-    private static setAlertContent(alertEl: Element, content?: string) {
-        if (typeof content === 'string' && content.trim().length > 0) {
-            const alertBody = alertEl.querySelector('.ekyct-alert-body');
-            if (alertBody) alertBody.innerHTML = content;
-        }
-    }
-
-    private static getAlertContent(alertEl: Element) {
-        const alertBody = alertEl.querySelector('.ekyct-alert-body');
-        if (alertBody) return alertBody.innerHTML;
-        return '';
-    }
-
-    private static setInsertAlertTimeout(alertEl: Element, innerTimeoutms: number, outerTimeoutMs: number) {
-        Utils.insertAlertTimeout = setTimeout(() => {
-            alertEl.classList.add('active');
-            setTimeout(() => {
-                Utils.clearInsertAlertTimeout();
-            }, innerTimeoutms);
-        }, outerTimeoutMs);
-    }
-
-    private static clearInsertAlertTimeout() {
-        if (Utils.insertAlertTimeout) {
-            clearTimeout(Utils.insertAlertTimeout);
-            Utils.insertAlertTimeout = null;
-        }
     }
 
     public static delay(delayInMS: number) {
         return new Promise((resolve) => {
             setTimeout(resolve, delayInMS);
         });
-    }
-
-    public static toggleLoader(isOpen = true, parentEl: Element | null = document.body) {
-        if (parentEl) {
-            const existsLoader = parentEl.querySelector('.ekyct-loader');
-            if (existsLoader) existsLoader.remove();
-            if (isOpen) {
-                const loader = Utils.createLoaderElement();
-                parentEl.appendChild(loader);
-            }
-        }
-    }
-
-    public static toggleLoaderOnCaptureRegion(isOpen = true, captureRegion: Element | null) {
-        if (captureRegion) {
-            if (isOpen) captureRegion.classList.add('ekyct-hide-shading');
-            else captureRegion.classList.remove('ekyct-hide-shading');
-            this.toggleLoader(isOpen, captureRegion);
-        }
-    }
-
-    private static insertCircleRegion(parentEl: HTMLDivElement) {
-        const circleRegion = document.createElement('div');
-        const parentWidth = parseFloat(parentEl.style.width.slice(0, -2));
-        const parentBorderXWidth = parseFloat(parentEl.style.borderLeftWidth.slice(0, -2));
-        const width = parentWidth - parentBorderXWidth * 2;
-        circleRegion.className = 'ekyct-circle-region';
-        for (let i = 0; i < 100; i++) {
-            const pointEl = document.createElement('div');
-            pointEl.className = 'ekyct-circle-region-point';
-            circleRegion.appendChild(pointEl);
-            pointEl.style.transform = `rotate(${i * 3.6}deg) translateY(${width / 2 - 10}px)`;
-        }
-        parentEl.appendChild(circleRegion);
-    }
-
-    private static createLoaderElement() {
-        const loaderDiv = document.createElement('div');
-        loaderDiv.className = 'ekyct-loader';
-        const loaderContentDiv = document.createElement('div');
-        loaderContentDiv.className = 'ekyct-loader-content';
-        for (let i = 1; i <= 10; i++) {
-            const dotSpan = document.createElement('span');
-            dotSpan.setAttribute('style', '--i:' + i);
-            loaderContentDiv.appendChild(dotSpan);
-        }
-        loaderDiv.appendChild(loaderContentDiv);
-        return loaderDiv;
     }
 
     public static newGuid() {
@@ -310,68 +41,6 @@ export class Utils {
         if (dateNow.getUTCSeconds() < 10) guid += `0${dateNow.getUTCSeconds()}`;
         else guid += dateNow.getUTCSeconds();
         return guid;
-    }
-
-    public static async getCapabilitiesOfFacingMode(facingMode: string) {
-        if (facingMode !== 'environment' && facingMode !== 'user') return undefined;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: {
-                    facingMode: {
-                        exact: facingMode
-                    }
-                }
-            });
-            const [track] = stream.getVideoTracks();
-            const capabilities = track.getCapabilities();
-            Utils.clearMediaStream(stream);
-            return capabilities;
-        } catch (err) {
-            return undefined;
-        }
-    }
-
-    public static async getCapabilitiesBothCam() {
-        let frontCamCapabilities = await Utils.getCapabilitiesOfFacingMode('user');
-        let rearCamCapabilities = await Utils.getCapabilitiesOfFacingMode('environment');
-        const hasBoth = frontCamCapabilities !== undefined || rearCamCapabilities !== undefined;
-        let mediaStream: MediaStream | null = null;
-        if (hasBoth) {
-            if (!frontCamCapabilities) {
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: false,
-                    video: {
-                        facingMode: 'user'
-                    }
-                });
-                const [track] = mediaStream.getVideoTracks();
-                frontCamCapabilities = track.getCapabilities();
-            } else if (!rearCamCapabilities) {
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: false,
-                    video: {
-                        facingMode: 'environment'
-                    }
-                });
-                const [track] = mediaStream.getVideoTracks();
-                rearCamCapabilities = track.getCapabilities();
-            }
-        } else {
-            mediaStream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: true
-            });
-            const [track] = mediaStream.getVideoTracks();
-            frontCamCapabilities = track.getCapabilities();
-        }
-        Utils.clearMediaStream(mediaStream);
-        return {
-            hasBoth,
-            frontCamCapabilities,
-            rearCamCapabilities
-        }
-        // return hasRearCamera && hasFrontCamera;
     }
 
     public static clearMediaStream(mediaStream: MediaStream | null) {
@@ -409,74 +78,6 @@ export class Utils {
         try { if (document.fullscreenElement != null) await document.exitFullscreen() } catch (err) { console.warn(err) }
     }
 
-    public static getVideoRatios(videoEl: HTMLVideoElement, maxRatio?: number) {
-        const originWidthRatio = videoEl.videoWidth / videoEl.clientWidth;
-        const originHeightRatio = videoEl.videoHeight / videoEl.clientHeight;
-        let newWidthRatio = originWidthRatio;
-        let newHeightRatio = originHeightRatio;
-        if (typeof maxRatio === 'number' && maxRatio > 0) {
-            if (originWidthRatio >= originHeightRatio) {
-                if (originWidthRatio > maxRatio) {
-                    const ratio = originWidthRatio / originHeightRatio;
-                    newWidthRatio = maxRatio;
-                    newHeightRatio = maxRatio / ratio;
-                }
-            } else {
-                if (originHeightRatio > maxRatio) {
-                    const ratio = originHeightRatio / originWidthRatio;
-                    newHeightRatio = maxRatio;
-                    newWidthRatio = maxRatio / ratio;
-                }
-            }
-        }
-        return { originWidthRatio, originHeightRatio, newWidthRatio, newHeightRatio };
-    }
-
-    public static getCaptureRegionHeight(captureRegionEl: HTMLDivElement) {
-        const container = captureRegionEl.closest('.ekyct-container--inner') as HTMLDivElement;
-        const videoEl = captureRegionEl.querySelector('.ekyct-video');
-        const headerEl = container.querySelector('.ekyct-header');
-        const footerEl = container.querySelector('.ekyct-footer');
-        const bodyEl = container.querySelector('.ekyct-body') as HTMLDivElement;
-        let headerAndFooterHeight = 180;
-        if (headerEl && footerEl) headerAndFooterHeight = headerEl.clientHeight + footerEl.clientHeight;
-        if (container.classList.contains('ekyct-container--rotate')) headerAndFooterHeight = 0;
-        let baseHeight = window.innerHeight - headerAndFooterHeight;
-        if (videoEl) {
-            if (baseHeight > videoEl.clientHeight) baseHeight = videoEl.clientHeight;
-        }
-        if (bodyEl) {
-            if (headerAndFooterHeight > 0) bodyEl.style.height = `${baseHeight}px`;
-            else bodyEl.style.height = '100%';
-        }
-        return baseHeight;
-    }
-
-    public static getCanvasContextWidth(videoEl: HTMLVideoElement, shadingEl: HTMLDivElement, captureRegionWidth: number, maxCanvasRatio?: number) {
-        let borderX = 0, baseWidth = captureRegionWidth;
-        if (shadingEl) {
-            borderX = parseFloat(shadingEl.style.borderLeftWidth.slice(0, -2));
-            baseWidth = parseFloat(shadingEl.style.width.slice(0, -2));
-        }
-        const { newWidthRatio } = Utils.getVideoRatios(videoEl, maxCanvasRatio);
-        const qrRegionWidth = baseWidth - borderX * 2;
-        let canvasContextWidth = Math.round(qrRegionWidth * newWidthRatio);
-        /* Fix lỗi một số thiết bị không record được khi canvas width hoặc canvas height là số lẻ */
-        if (canvasContextWidth % 2 !== 0) canvasContextWidth -= 1;
-        return canvasContextWidth;
-    }
-
-    public static getInnerElementsInCaptureDiv(captureRegionEl: HTMLDivElement) {
-        const canvasEl = captureRegionEl.querySelector('.ekyct-canvas') as HTMLCanvasElement;
-        const videoEl = captureRegionEl.querySelector('.ekyct-video') as HTMLVideoElement;
-        const shadingEl = captureRegionEl.querySelector('.ekyct-shading') as HTMLDivElement;
-        return {
-            canvasEl,
-            videoEl,
-            shadingEl
-        }
-    }
-
     public static isNullOrUndefined(obj?: any) {
         return (typeof obj === "undefined") || obj === null;
     }
@@ -497,6 +98,10 @@ export class Utils {
 
     public static closestByClassName(className: string, child: HTMLElement) {
         return child.closest(`.${className}`);
+    }
+
+    public static queryAllByClassName(className: string, parent: HTMLElement = document.body) {
+        return parent.querySelectorAll(`.${className}`);
     }
 
     public static isMediaStreamConstraintsValid(

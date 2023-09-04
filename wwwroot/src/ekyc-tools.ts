@@ -69,9 +69,11 @@ export class EkycTools {
         const captureRegion = Utils.queryByClassName(UIElementClasses.CAPTURE_REGION_DIV, this.element!) as HTMLDivElement;
         const footerInner = Utils.queryByClassName(UIElementClasses.FOOTER_INNER_DIV, this.element!) as HTMLDivElement;
         const closeBtn = Utils.queryByClassName(UIElementClasses.CLOSE_BTN, this.element!) as HTMLButtonElement;
+        const isRecordConfig = Utils.instanceOfGetVideoConfig(config);
         captureRegion.dataset.shadingRatio = config.shadingRatio!.toString();
         captureRegion.dataset.canvasMaxWidth = config.canvasMaxWidth!.toString();
         captureRegion.dataset.canvasMinWidth = config.canvasMinWidth!.toString();
+        captureRegion.dataset.isRecord = isRecordConfig.toString();
         const handleCloseBtnUILoad: UILoadHandler = (loading: boolean) => {
             if (loading) closeBtn.disabled = true;
             else closeBtn.disabled = false;
@@ -81,7 +83,6 @@ export class EkycTools {
             evt.preventDefault();
             this.close();
         });
-        const isRecordConfig = Utils.instanceOfGetVideoConfig(config);
         let accept = isRecordConfig ? 'video/mp4,video/webm,video/mov' : 'image/jpeg,image/png,image/webp';
         this.element!.addEventListener(CustomEventNames.UI_LOADING, () => {
             this.loadHandlers.forEach(handler => handler(true));

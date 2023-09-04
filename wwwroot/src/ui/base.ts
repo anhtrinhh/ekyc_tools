@@ -75,6 +75,7 @@ export class UI {
             const videoClientHeight = videoEl!.clientHeight;
             this.insertShadingElement(parent, videoClientWidth, videoClientHeight);
             this.insertCanvasElement(parent, videoClientWidth, videoClientHeight);
+            this.insertCircleRegion(parent, videoClientWidth, videoClientHeight);
         }, this.delaySetupUIMs);
     }
 
@@ -246,30 +247,33 @@ export class UI {
     }
 
     private static insertShadingElement(parent: HTMLDivElement, videoClientWidth: number, videoClientHeight: number) {
-        let ratio = parseFloat(parent.dataset.shadingRatio ?? '0');
-        if (isNaN(ratio) || ratio < 0) ratio = 0;
-        if (ratio > 0) {
-            Utils.queryByClassName(UIElementClasses.SHADING_DIV, parent)?.remove();
-            let baseHeight = parent.clientHeight > videoClientHeight ? videoClientHeight : parent.clientHeight;
-            const shadingElement = document.createElement("div");
-            shadingElement.className = UIElementClasses.SHADING_DIV;
-            shadingElement.style.width = `${videoClientWidth}px`;
-            shadingElement.style.height = `${baseHeight}px`;
-            const borderSize = this.getShadingBorderSize(videoClientWidth, baseHeight, ratio);
-            shadingElement.style.borderLeftWidth = `${borderSize.borderX}px`;
-            shadingElement.style.borderRightWidth = `${borderSize.borderX}px`;
-            shadingElement.style.borderTopWidth = `${borderSize.borderY}px`;
-            shadingElement.style.borderBottomWidth = `${borderSize.borderY}px`;
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, true);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, false);
-            this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, false);
-            parent.appendChild(shadingElement);
-            return shadingElement;
+        const isRecord = parent.dataset.isRecord;
+        if (isRecord === 'false') {
+            let ratio = parseFloat(parent.dataset.shadingRatio ?? '0');
+            if (isNaN(ratio) || ratio < 0) ratio = 0;
+            if (ratio > 0) {
+                Utils.queryByClassName(UIElementClasses.SHADING_DIV, parent)?.remove();
+                let baseHeight = parent.clientHeight > videoClientHeight ? videoClientHeight : parent.clientHeight;
+                const shadingElement = document.createElement("div");
+                shadingElement.className = UIElementClasses.SHADING_DIV;
+                shadingElement.style.width = `${videoClientWidth}px`;
+                shadingElement.style.height = `${baseHeight}px`;
+                const borderSize = this.getShadingBorderSize(videoClientWidth, baseHeight, ratio);
+                shadingElement.style.borderLeftWidth = `${borderSize.borderX}px`;
+                shadingElement.style.borderRightWidth = `${borderSize.borderX}px`;
+                shadingElement.style.borderTopWidth = `${borderSize.borderY}px`;
+                shadingElement.style.borderBottomWidth = `${borderSize.borderY}px`;
+                this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, true);
+                this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, -this.shardBorderSmallSize, null, 0, false);
+                this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, true);
+                this.insertShaderBorders(shadingElement, this.shardBorderLargeSize, this.shardBorderSmallSize, null, -this.shardBorderSmallSize, 0, false);
+                this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, true);
+                this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, true);
+                this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, -this.shardBorderSmallSize, null, -this.shardBorderSmallSize, false);
+                this.insertShaderBorders(shadingElement, this.shardBorderSmallSize, this.shardBorderLargeSize + this.shardBorderSmallSize, null, -this.shardBorderSmallSize, -this.shardBorderSmallSize, false);
+                parent.appendChild(shadingElement);
+                return shadingElement;
+            }
         }
         return null;
     }
@@ -308,6 +312,36 @@ export class UI {
         parent.appendChild(canvasElement);
         Utils.closestByClassName(UIElementClasses.CONTAINER_DIV, parent)?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED, { detail: { canvas: canvasElement } }));
         return canvasElement;
+    }
+
+    private static insertCircleRegion(parentEl: HTMLDivElement, videoClientWidth: number, videoClientHeight: number) {
+        const isRecord = parentEl.dataset.isRecord;
+        if (isRecord === 'true') {
+            let circleRegion = Utils.queryByClassName(UIElementClasses.CIRCULAR_PROGRESS_DIV, parentEl) as HTMLElement;
+            const parentWidth = parentEl.clientWidth;
+            const parentHeight = parentEl.clientHeight;
+            const parentSize = parentWidth < parentHeight ? parentWidth : parentHeight;
+            const videoSize = videoClientWidth < videoClientHeight ? videoClientWidth : videoClientHeight;
+            const width = parentSize < videoSize ? parentSize - 40 : videoSize - 40;
+            if (circleRegion) {
+                Utils.queryAllByClassName(UIElementClasses.CIRCULAR_PROGRESS_POINT_DIV).forEach((elm, i) => {
+                    const pointEl = elm as HTMLElement;
+                    pointEl.style.transform = `rotate(${i * 3.6}deg) translateY(${width / 2 - 10}px)`;
+                });
+            } else {
+                circleRegion = document.createElement('div');
+                circleRegion.className = UIElementClasses.CIRCULAR_PROGRESS_DIV;
+                for (let i = 0; i < 100; i++) {
+                    const pointEl = document.createElement('div');
+                    pointEl.className = UIElementClasses.CIRCULAR_PROGRESS_POINT_DIV;
+                    circleRegion.appendChild(pointEl);
+                    pointEl.style.transform = `rotate(${i * 3.6}deg) translateY(${width / 2 - 10}px)`;
+                }
+                parentEl.appendChild(circleRegion);
+            }
+            circleRegion.style.width = `${width}px`;
+            circleRegion.style.height = `${width}px`;
+        }
     }
 
     private static insertShaderBorders(

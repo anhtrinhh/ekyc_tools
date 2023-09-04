@@ -9,36 +9,82 @@ export interface RecorderConfig {
     videoBitsPerSecond?: number;
 }
 
+// class RecordProgressUI {
+//     private static delayMilliseconds = 100;
+//     private readonly progressMs: number;
+//     private readonly progressElement: HTMLDivElement;
+//     private interval: any;
+//     private durationMilliseconds: number = 0;
+//     private constructor(progressMs: number) {
+//         this.progressMs = progressMs;
+//         this.progressElement = document.createElement('div');
+//     }
+//     private render(parent: HTMLElement) {
+//         this.progressElement.className = UIElementClasses.CIRCULAR_PROGRESS;
+//         this.progressElement.innerHTML = EkycCircularSVG;
+//         const span = document.createElement('span');
+//         this.progressElement.appendChild(span);
+//         this.setPercent(0);
+//         parent.appendChild(this.progressElement);
+//     }
+
+//     private setPercent(percent: number) {
+//         this.progressElement.setAttribute('style', '--percent: ' + percent);
+//         const span = this.progressElement.querySelector('span');
+//         if (span) span.innerText = `${percent}%`;
+//     }
+
+//     public start() {
+//         this.reset();
+//         return new Promise((resolve) => {
+//             this.interval = setInterval(() => {
+//                 this.durationMilliseconds += 100;
+//                 const percent = Math.floor((this.durationMilliseconds / this.progressMs) * 100);
+//                 this.setPercent(percent);
+//                 if (this.durationMilliseconds >= this.progressMs) resolve(null);
+//             }, RecordProgressUI.delayMilliseconds);
+//         })
+//     }
+
+//     public reset() {
+//         this.durationMilliseconds = 0;
+//         this.setPercent(0);
+//         if (this.interval) clearInterval(this.interval);
+//     }
+
+//     public static create(parent: HTMLElement, progressMs: number): RecordProgressUI {
+//         const ui = new RecordProgressUI(progressMs);
+//         ui.render(parent);
+//         return ui;
+//     }
+// }
+
 class RecordProgressUI {
-    private static delayMilliseconds = 100;
+    private static delayMilliseconds = 500;
     private readonly progressMs: number;
-    private readonly progressElement: HTMLDivElement;
+    private readonly parentElement: HTMLElement;
     private interval: any;
     private durationMilliseconds: number = 0;
-    private constructor(progressMs: number) {
+    private constructor(parent: HTMLElement, progressMs: number) {
         this.progressMs = progressMs;
-        this.progressElement = document.createElement('div');
-    }
-    private render(parent: HTMLElement) {
-        this.progressElement.className = UIElementClasses.CIRCULAR_PROGRESS;
-        this.progressElement.innerHTML = EkycCircularSVG;
-        const span = document.createElement('span');
-        this.progressElement.appendChild(span);
-        this.setPercent(0);
-        parent.appendChild(this.progressElement);
+        this.parentElement = parent;
     }
 
     private setPercent(percent: number) {
-        this.progressElement.setAttribute('style', '--percent: ' + percent);
-        const span = this.progressElement.querySelector('span');
-        if (span) span.innerText = `${percent}%`;
+        const element = Utils.queryByClassName(UIElementClasses.CIRCULAR_PROGRESS_DIV, this.parentElement) as HTMLElement;
+        if (element) {
+            Utils.queryAllByClassName(UIElementClasses.CIRCULAR_PROGRESS_POINT_DIV, element).forEach((elm, ix) => {
+                if (ix < percent) elm.classList.add('ekyct-circle-region-point--marked');
+                else elm.classList.remove('ekyct-circle-region-point--marked');
+            });
+        }
     }
 
     public start() {
         this.reset();
         return new Promise((resolve) => {
             this.interval = setInterval(() => {
-                this.durationMilliseconds += 100;
+                this.durationMilliseconds += RecordProgressUI.delayMilliseconds;
                 const percent = Math.floor((this.durationMilliseconds / this.progressMs) * 100);
                 this.setPercent(percent);
                 if (this.durationMilliseconds >= this.progressMs) resolve(null);
@@ -53,8 +99,7 @@ class RecordProgressUI {
     }
 
     public static create(parent: HTMLElement, progressMs: number): RecordProgressUI {
-        const ui = new RecordProgressUI(progressMs);
-        ui.render(parent);
+        const ui = new RecordProgressUI(parent, progressMs);
         return ui;
     }
 }
@@ -84,6 +129,7 @@ export class RecordUI {
             evt.preventDefault();
             if (this.mediaStream && !this.recording) {
                 this.recording = true;
+                this.recordButton.disabled = true;
                 if (this.onStart) this.onStart();
                 this.recorder = new MediaRecorder(this.mediaStream, {
                     videoBitsPerSecond: this.config.videoBitsPerSecond
@@ -96,19 +142,20 @@ export class RecordUI {
                             const result: VideoResult = {
                                 blob,
                                 contentLength: blob.size,
-                                contentType: 'video/webm',
-                                contentName: `${Utils.newGuid()}.webm`,
+                                contentType: blob.type,
+                                contentName: `${Utils.newGuid()}${Utils.getFileExtensions(blob.type)}`,
                                 poster: null
                             };
                             if (posterBlob) {
                                 result.poster = {
                                     blob: posterBlob,
                                     contentLength: posterBlob.size,
-                                    contentName: `${Utils.newGuid()}.png`,
-                                    contentType: 'image/png'
+                                    contentName: `${Utils.newGuid()}${Utils.getFileExtensions(posterBlob.type)}`,
+                                    contentType: posterBlob.type
                                 }
                             }
                             this.recording = false;
+                            this.recordButton.disabled = false;
                             this.onStop(result);
                         }
                     } catch (err) {

@@ -1,5 +1,5 @@
-import { OnErrorCallback, OnStartCallback, OnStopCallback, VideoResult } from "../core";
-import { EkycRecordBtnSVG, EkycCircularSVG } from '../ekyc-asset';
+import { OnErrorCallback, OnStartCallback, OnStopCallback, ResultFactory } from "../core";
+import { EkycRecordBtnSVG } from '../ekyc-asset';
 import { Utils } from "../utils";
 import { UI, UILoadHandler } from "./base";
 import { UIElementClasses } from "./constants";
@@ -139,24 +139,9 @@ export class RecordUI {
                         if (this.onStop) {
                             const blob = event.data;
                             const posterBlob = await UI.getCapture(captureRegion);
-                            const result: VideoResult = {
-                                blob,
-                                contentLength: blob.size,
-                                contentType: blob.type,
-                                contentName: `${Utils.newGuid()}${Utils.getFileExtensions(blob.type)}`,
-                                poster: null
-                            };
-                            if (posterBlob) {
-                                result.poster = {
-                                    blob: posterBlob,
-                                    contentLength: posterBlob.size,
-                                    contentName: `${Utils.newGuid()}${Utils.getFileExtensions(posterBlob.type)}`,
-                                    contentType: posterBlob.type
-                                }
-                            }
                             this.recording = false;
                             this.recordButton.disabled = false;
-                            this.onStop(result);
+                            this.onStop(ResultFactory.createVideoResult(blob, posterBlob));
                         }
                     } catch (err) {
                         if (this.onError) this.onError(err);

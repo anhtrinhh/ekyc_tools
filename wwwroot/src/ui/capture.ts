@@ -1,4 +1,4 @@
-import { OnErrorCallback, OnStartCallback, OnStopCallback } from '../core';
+import { OnErrorCallback, OnStartCallback, OnStopCallback, ResultFactory } from '../core';
 import { EkycCaptureBtnSVG } from '../ekyc-asset';
 import { Utils } from '../utils';
 import { UI } from './base';
@@ -28,12 +28,7 @@ export class CaptureButton {
             UI.getCapture(this.captureRegion).then(rs => {
                 if (this.onStop) {
                     if (rs) {
-                        this.onStop({
-                            blob: rs,
-                            contentName: `${Utils.newGuid()}${Utils.getFileExtensions(rs.type)}`,
-                            contentLength: rs.size,
-                            contentType: rs.type
-                        })
+                        this.onStop(ResultFactory.createImageResult(rs))
                     } else this.onStop(null);
                 }
             }).catch(err => {

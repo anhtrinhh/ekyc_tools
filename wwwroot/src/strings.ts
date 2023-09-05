@@ -1,6 +1,6 @@
 /**
  * @fileoverview
- * Strings used by {@class EkycTools} & {@class EkycToolsScanner}
+ * Strings used by {@class EkycTools}
  * 
  */
 
@@ -9,10 +9,6 @@
  * 
  */
 export class EkycToolsStrings {
-
-    public static codeParseError(exception: any): string {
-        return `QR code parse error, error = ${exception}`;
-    }
 
     public static errorGettingUserMedia(error: any): string {
         return `Error getting userMedia, error = ${error}`;

@@ -47,10 +47,10 @@ export class ResultFactory {
     static createImageResult(blob: Blob | null): BaseResult | null {
         if (blob) {
             return {
-                blob: blob,
-                contentName: `${Utils.newGuid()}.png`,
+                blob,
+                contentName: `${Utils.newGuid()}${Utils.getFileExtensions(blob.type)}`,
                 contentLength: blob.size,
-                contentType: 'image/png'
+                contentType: blob.type
             };
         }
         return null;
@@ -58,13 +58,12 @@ export class ResultFactory {
 
     static createVideoResult(videoBlob: Blob | null, posterBlob: Blob | null): VideoResult | null {
         if (videoBlob) {
-            var poster = this.createImageResult(posterBlob);
             return {
                 blob: videoBlob,
-                contentName: `${Utils.newGuid()}.webm`,
                 contentLength: videoBlob.size,
-                contentType: 'video/webm',
-                poster
+                contentType: videoBlob.type,
+                contentName: `${Utils.newGuid()}${Utils.getFileExtensions(videoBlob.type)}`,
+                poster: this.createImageResult(posterBlob)
             };
         }
         return null;

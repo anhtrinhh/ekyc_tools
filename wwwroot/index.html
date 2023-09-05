@@ -62,14 +62,14 @@
         async function handleRecord() {
             var tools = new EkycTools();
             tools.open({
-                video: { aspectRatio: 1, width: 1440, height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 8000,
+                video: { aspectRatio: 1, width: 1440, height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 8000, enableSwitchCamera: true,
                 onError: reason => console.log(reason),
                 onStart: () => console.log('Start capture'),
                 onStop: rs => {
                     console.log(rs)
                     if (rs) {
                         alert(JSON.stringify(rs))
-                        
+
                         const videoEl = document.getElementById('video-id');
                         const url = URL.createObjectURL(rs.blob);
                         videoEl.controls = true;
@@ -92,30 +92,60 @@
             });
         }
 
+        async function getVideoContraint(deviceId) {
+            const rate = 0.6;
+            const videoContraint = {
+                width: 1920,
+                height: 1080,
+                frameRate: 20,
+                deviceId
+            };
+            if (deviceId) {
+                const deviceInfos = await navigator.mediaDevices.enumerateDevices();
+                const deviceInfo = deviceInfos.find(device => device.deviceId === deviceId);
+                if (deviceInfo) {
+                    const capabilities = deviceInfo.getCapabilities();
+                    let widthIdeal = Math.floor(capabilities.width.max * rate);
+                    let heightIdeal = Math.floor(capabilities.height.max * rate);
+                    let frameRateIdeal = Math.floor(capabilities.frameRate.max * rate);
+                    if (widthIdeal < videoContraint.width) widthIdeal = videoContraint.width;
+                    if (heightIdeal < videoContraint.height) heightIdeal = videoContraint.height;
+                    if (frameRateIdeal < videoContraint.frameRate) frameRateIdeal = videoContraint.frameRate;
+                    videoContraint.width = { ideal: widthIdeal % 2 === 0 ? widthIdeal : widthIdeal + 1, max: capabilities.width.max };
+                    videoContraint.height = { ideal: heightIdeal % 2 === 0 ? heightIdeal : heightIdeal + 1, max: capabilities.height.max };
+                    videoContraint.frameRate = { ideal: frameRateIdeal % 2 === 0 ? frameRateIdeal : frameRateIdeal + 1, max: capabilities.frameRate.max }
+                }
+            }
+            return videoContraint;
+        }
+
         async function handleCapture() {
             getCameraDevicesByType().then(rs => {
                 let deviceId;
                 if (rs.backs.length > 0) deviceId = rs.backs[0].id;
                 else if (rs.others.length > 0) deviceId = rs.others[0].id;
-                var tools = new EkycTools(true);
-                tools.open({
-                    enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
-                    video: { width: 1920, height: 1080, deviceId }, shadingRatio: 1.66666667, canvasMaxWidth: 1920, canvasMinWidth: 1280,
-                    onError: reason => console.log(reason),
-                    onStart: () => console.log('Start capture'),
-                    onStop: rs => {
-                        if (rs) {
-                            alert(JSON.stringify(rs))
-                            const img = document.getElementById('img-id');
-                            const url = URL.createObjectURL(rs.blob);
-                            img.src = url;
-                            img.onload = () => {
-                                URL.revokeObjectURL(url);
-                            };
-                            tools.close();
+                getVideoContraint(deviceId).then(videoContraint => {
+                    var tools = new EkycTools(true);
+                    alert(JSON.stringify(videoContraint))
+                    tools.open({
+                        enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
+                        video: videoContraint, shadingRatio: 1.66666667, canvasMaxWidth: 1920, canvasMinWidth: 1280,
+                        onError: reason => console.log(reason),
+                        onStart: () => console.log('Start capture'),
+                        onStop: rs => {
+                            if (rs) {
+                                alert(JSON.stringify(rs))
+                                const img = document.getElementById('img-id');
+                                const url = URL.createObjectURL(rs.blob);
+                                img.src = url;
+                                img.onload = () => {
+                                    URL.revokeObjectURL(url);
+                                };
+                                tools.close();
+                            }
                         }
-                    }
-                });
+                    });
+                })
             })
         }
     </script>

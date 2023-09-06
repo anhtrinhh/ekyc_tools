@@ -11,6 +11,51 @@
         h1 {
             margin: 0;
         }
+
+        .ekyct-body,
+        .ekyct-capture-region {
+            max-height: 520px;
+        }
+
+        .ekyct-capture-region[data-is-record="true"] {
+            background-color: #414348;
+        }
+
+        .ekyct-capture-region[data-is-record="true"] .ekyct-video {
+            -webkit-transform: scaleX(-1);
+            transform: scaleX(-1);
+        }
+
+        .ekyct-header {
+            min-height: 140px;
+        }
+
+        .ekyct-alert-custom.active {
+            width: 100%;
+            max-width: unset;
+            color: #cecece;
+            background-color: transparent;
+            right: 50% !important;
+            transform: translateX(50%) !important;
+            font-size: 14px;
+            text-align: center;
+            top: 80px;
+        }
+
+        .ekyct-alert-custom.active .ekyct-alert-body {
+            padding: 0 20px;
+        }
+
+        .ekyct-container--rotate .ekyct-alert-custom.active {
+            width: calc(100% - 200px);
+            top: 0;
+            font-size: 10px;
+            text-align: left;
+        }
+
+        .ekyct-container--rotate .ekyct-alert-custom.active .ekyct-alert-body {
+            padding: 0;
+        }
     </style>
 </head>
 
@@ -60,36 +105,50 @@
             };
         }
         async function handleRecord() {
-            var tools = new EkycTools();
-            tools.open({
-                video: { aspectRatio: 1, width: 1440, height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 8000, enableSwitchCamera: true,
-                onError: reason => console.log(reason),
-                onStart: () => console.log('Start capture'),
-                onStop: rs => {
-                    console.log(rs)
-                    if (rs) {
-                        alert(JSON.stringify(rs))
+            getCameraDevicesByType().then(rs => {
+                let deviceId;
+                if (rs.fronts.length > 0) deviceId = rs.fronts[0].id;
+                var tools = new EkycTools();
+                tools.open({
+                    video: { width: 1440, height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 6000, enableSwitchCamera: true,
+                    onOpen: () => {
+                        tools.addAlert({
+                            content: 'Quý khách vui lòng để khuôn mặt hoàn toàn bên trong khung hình, sau đó nhấn nút quay video và giữ thiết bị tránh rung lắc trong 3-5s.',
+                            parentSelector: '.ekyct-container--inner',
+                            classList: ['ekyct-alert-custom']
+                        })
+                    },
+                    onError: reason => console.log(reason),
+                    onStart: () => console.log('Start record'),
+                    onStop: rs => {
+                        console.log(rs)
+                        if (rs) {
+                            alert(JSON.stringify(rs))
 
-                        const videoEl = document.getElementById('video-id');
-                        const url = URL.createObjectURL(rs.blob);
-                        videoEl.controls = true;
-                        videoEl.muted = true;
-                        videoEl.src = url;
-                        videoEl.onload = () => {
-                            URL.revokeObjectURL(url);
-                        };
+                            const videoEl = document.getElementById('video-id');
+                            const url = URL.createObjectURL(rs.blob);
+                            videoEl.controls = true;
+                            videoEl.muted = true;
+                            videoEl.src = url;
+                            videoEl.onload = () => {
+                                URL.revokeObjectURL(url);
+                            };
 
-                        const img = document.getElementById('img-id');
-                        const imgUrl = URL.createObjectURL(rs.poster.blob);
-                        img.src = imgUrl;
-                        img.onload = () => {
-                            URL.revokeObjectURL(imgUrl);
-                        };
+                            const img = document.getElementById('img-id');
+                            const imgUrl = URL.createObjectURL(rs.poster.blob);
+                            img.src = imgUrl;
+                            img.onload = () => {
+                                URL.revokeObjectURL(imgUrl);
+                            };
 
-                        tools.close();
+                            tools.close();
+                        }
                     }
-                }
+                });
             });
+
+
+
         }
 
         async function getVideoContraint(deviceId) {
@@ -123,29 +182,32 @@
             getCameraDevicesByType().then(rs => {
                 let deviceId;
                 if (rs.backs.length > 0) deviceId = rs.backs[0].id;
-                else if (rs.others.length > 0) deviceId = rs.others[0].id;
-                getVideoContraint(deviceId).then(videoContraint => {
-                    var tools = new EkycTools(true);
-                    alert(JSON.stringify(videoContraint))
-                    tools.open({
-                        enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
-                        video: videoContraint, shadingRatio: 1.66666667, canvasMaxWidth: 1920, canvasMinWidth: 1280,
-                        onError: reason => console.log(reason),
-                        onStart: () => console.log('Start capture'),
-                        onStop: rs => {
-                            if (rs) {
-                                alert(JSON.stringify(rs))
-                                const img = document.getElementById('img-id');
-                                const url = URL.createObjectURL(rs.blob);
-                                img.src = url;
-                                img.onload = () => {
-                                    URL.revokeObjectURL(url);
-                                };
-                                tools.close();
-                            }
+                var tools = new EkycTools(true);
+                tools.open({
+                    enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
+                    video: { width: 1440, height: 1080, deviceId }, shadingRatio: 1.66666667, canvasMaxWidth: 1920, canvasMinWidth: 1280,
+                    onOpen: () => {
+                        tools.addAlert({
+                            content: 'Quý khách vui lòng để mặt trước CCCD nằm hoàn toàn trong khung hình, không mờ không lóa sáng, sau đó nhấn nút chụp hình bên dưới.',
+                            parentSelector: '.ekyct-container--inner',
+                            classList: ['ekyct-alert-custom']
+                        })
+                    },
+                    onError: reason => console.log(reason),
+                    onStart: () => console.log('Start capture'),
+                    onStop: rs => {
+                        if (rs) {
+                            alert(JSON.stringify(rs))
+                            const img = document.getElementById('img-id');
+                            const url = URL.createObjectURL(rs.blob);
+                            img.src = url;
+                            img.onload = () => {
+                                URL.revokeObjectURL(url);
+                            };
+                            tools.close();
                         }
-                    });
-                })
+                    }
+                });
             })
         }
     </script>

@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="./dist/ekyc-tools.min.js"></script>
-    <link rel="stylesheet" href="css/ekyct.css">
+    <script src="./minified/ekyc-tools-fpts.min.js"></script>
     <style>
         h1 {
             margin: 0;
@@ -66,6 +65,13 @@
                 if (rs.fronts.length > 0) deviceId = rs.fronts[0].id;
                 tools.open({
                     video: { width: 1440, height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 6000, enableSwitchCamera: true,
+                    onOpen: () => {
+                        tools.addAlert({
+                            content: 'Quý khách vui lòng để khuôn mặt hoàn toàn bên trong khung hình, sau đó nhấn nút quay video và giữ thiết bị tránh rung lắc trong 3-5s.',
+                            parentSelector: '.ekyct-container--inner',
+                            classList: ['ekyct-alert-custom']
+                        })
+                    },
                     onError: reason => console.error(`Error: ${reason}`),
                     onStart: () => console.log('Start record'),
                     onStop: rs => {
@@ -133,6 +139,13 @@
                 tools.open({
                     enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
                     video: { width: 1440, height: 1080, deviceId }, shadingRatio: 1.66666667, canvasMaxWidth: 1920, canvasMinWidth: 1280,
+                    onOpen: () => {
+                        tools.addAlert({
+                            content: 'Quý khách vui lòng để mặt trước CCCD nằm hoàn toàn trong khung hình, không mờ không lóa sáng, sau đó nhấn nút chụp hình bên dưới.',
+                            parentSelector: '.ekyct-container--inner',
+                            classList: ['ekyct-alert-custom']
+                        })
+                    },
                     onError: reason => console.error(`Error: ${reason}`),
                     onStart: () => console.log('Start capture'),
                     onStop: rs => {

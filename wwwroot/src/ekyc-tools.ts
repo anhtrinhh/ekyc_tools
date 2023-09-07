@@ -14,6 +14,7 @@ import { Utils } from "./utils";
 export class EkycTools {
     private readonly verbose: boolean;
     private readonly logger: Logger;
+    private openning: boolean = false;
     private loadHandlers: UILoadHandler[] = [];
     private flashButton: FlashButton | null = null;
     private zoomInput: ZoomUI | null = null;
@@ -34,32 +35,40 @@ export class EkycTools {
     }
 
     public open(config: BaseConfig) {
-        this.element = UI.createBasicLayout(this.loadHandlers);
-        document.body.appendChild(this.element);
-        if (config.onOpen) config.onOpen();
-        this.createSectionControlPanel(config);
+        if (!this.openning) {
+            this.openning = true;
+            this.element = UI.createBasicLayout(this.loadHandlers);
+            document.body.appendChild(this.element);
+            if (config.onOpen) config.onOpen();
+            this.createSectionControlPanel(config);
+        }
     }
 
     public close() {
-        if (this.flashButton) {
-            this.flashButton.reset();
-            this.flashButton.hide();
-        }
-        if (this.zoomInput) {
-            this.zoomInput.removeOnCameraZoomValueChangeCallback();
-            this.zoomInput.hide();
+        if (this.openning) {
+            if (this.flashButton) {
+                this.flashButton.reset();
+                this.flashButton.hide();
+            }
+            if (this.zoomInput) {
+                this.zoomInput.removeOnCameraZoomValueChangeCallback();
+                this.zoomInput.hide();
+            }
         }
         return new Promise((resolve, reject) => {
-            if (this.renderedCamera) {
+            if (this.renderedCamera && this.openning) {
                 this.renderedCamera.close().then(() => {
                     if (this.element) document.body.removeChild(this.element);
+                    this.openning = false;
                     resolve(null);
                 }).catch(err => {
                     this.logger.logError(err);
+                    this.openning = false;
                     reject(err);
                 });
             } else {
                 if (this.element) document.body.removeChild(this.element);
+                this.openning = false;
                 resolve(null);
             }
         })
@@ -94,10 +103,12 @@ export class EkycTools {
         this.element!.addEventListener(CustomEventNames.UI_LOADED, evt => {
             const customEvent = evt as CustomEvent;
             this.loadHandlers.forEach(handler => handler(false));
-            const canvas = customEvent.detail.canvas as HTMLCanvasElement;
-            const { error } = customEvent.detail;
-            if (canvas && !isRecordConfig) CaptureButton.create(footerInner, captureRegion, config.onStart, config.onStop, config.onError);
-            if (error && config.onError) config.onError(error);
+            if (customEvent.detail) {
+                const canvas = customEvent.detail.canvas as HTMLCanvasElement;
+                const { error } = customEvent.detail;
+                if (canvas && !isRecordConfig) CaptureButton.create(footerInner, captureRegion, config.onStart, config.onStop, config.onError);
+                if (error && config.onError) config.onError(error);
+            }
         });
         if (config.enableFilePicker) FilePickerUI.create(footerInner, accept, this.loadHandlers, config.onStart, config.onStop);
         if (config.enableSwitchCamera) {
@@ -112,24 +123,34 @@ export class EkycTools {
                         else config.video!.deviceId = { exact: customEvent.detail.deviceId };
                         UI.setupCamera(captureRegion, config.video, this.renderedCamera)
                             .then(renderedCamera => this.setRenderedCamera(renderedCamera, config))
-                            .catch(err => this.logger.logError(err));
+                            .catch(err => {
+                                if (config.onError) config.onError(err);
+                                this.logger.logError(err)
+                            });
                     })
-                }).catch(err => this.logger.logError(err));
+                }).catch(err => {
+                    if (config.onError) config.onError(err);
+                    this.logger.logError(err);
+                });
             }).catch(err => {
                 this.element?.dispatchEvent(new CustomEvent(CustomEventNames.UI_LOADED));
+                if (config.onError) config.onError(err);
                 this.logger.logError(err);
             });
         } else {
             UI.setupCamera(captureRegion, config.video)
                 .then(renderedCamera => this.setRenderedCamera(renderedCamera, config))
-                .catch(err => this.logger.logError(err));
+                .catch(err => {
+                    if (config.onError) config.onError(err);
+                    this.logger.logError(err);
+                });
         }
     }
 
     private setRenderedCamera(renderedCamera: RenderedCamera, config: BaseConfig) {
         this.renderedCamera = renderedCamera;
         const cameraCapabilities = renderedCamera.getCapabilities();
-        if (config.enableFlash) this.createAndShowFlashButtonIfSupported(cameraCapabilities)
+        if (config.enableFlash) this.createAndShowFlashButtonIfSupported(cameraCapabilities, config.onError)
         this.renderCameraZoomUiIfSupported(cameraCapabilities, config.zoom);
         this.createAndShowRecordUI(renderedCamera.getStream(), config);
     }
@@ -152,7 +173,7 @@ export class EkycTools {
         }
     }
 
-    private createAndShowFlashButtonIfSupported(cameraCapabilities: CameraCapabilities) {
+    private createAndShowFlashButtonIfSupported(cameraCapabilities: CameraCapabilities, onError?: any) {
         if (!cameraCapabilities.flashFeature().isSupported()) {
             // flash not supported, ignore.
             if (this.flashButton) {
@@ -167,7 +188,8 @@ export class EkycTools {
                 cameraCapabilities.flashFeature(),
                 // Callback in case of flash action failure.
                 err => {
-                    this.logger.logError(err)
+                    if (onError) onError(err);
+                    this.logger.logError(err);
                 },
                 this.loadHandlers
             );

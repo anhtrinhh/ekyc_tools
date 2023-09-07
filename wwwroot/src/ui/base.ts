@@ -71,11 +71,13 @@ export class UI {
         else containerInner.classList.remove(UIElementClasses.CONTAINER_INNER_ROTATE_DIV);
         setTimeout(() => {
             const videoEl = Utils.queryByClassName(UIElementClasses.VIDEO, parent);
-            const videoClientWidth = videoEl!.clientWidth;
-            const videoClientHeight = videoEl!.clientHeight;
-            this.insertShadingElement(parent, videoClientWidth, videoClientHeight);
-            this.insertCanvasElement(parent, videoClientWidth, videoClientHeight);
-            this.insertCircleRegion(parent, videoClientWidth, videoClientHeight);
+            if (videoEl) {
+                const videoClientWidth = videoEl.clientWidth;
+                const videoClientHeight = videoEl.clientHeight;
+                this.insertShadingElement(parent, videoClientWidth, videoClientHeight);
+                this.insertCanvasElement(parent, videoClientWidth, videoClientHeight);
+                this.insertCircleRegion(parent, videoClientWidth, videoClientHeight);
+            }
         }, this.delaySetupUIMs);
     }
 
@@ -375,12 +377,12 @@ export class UI {
         let borderX = (baseWidth - width) / 2;
         let borderY = (baseHeight - height) / 2;
         if (borderY < this.shardBorderSmallSize * 4) {
-            borderX += this.shardBorderSmallSize * 4 - borderY;
             borderY = this.shardBorderSmallSize * 4;
+            borderX = (baseWidth - ((baseHeight - borderY * 2) * ratio)) / 2;
         }
         if (borderX < this.shardBorderSmallSize * 4) {
-            borderY += this.shardBorderSmallSize * 4 - borderX;
             borderX = this.shardBorderSmallSize * 4;
+            borderY = (baseHeight - ((baseWidth - borderX * 2) / ratio)) / 2;
         }
         return {
             borderX,

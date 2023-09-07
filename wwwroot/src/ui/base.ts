@@ -374,14 +374,19 @@ export class UI {
 
     private static getShadingBorderSize(baseWidth: number, baseHeight: number, ratio: number) {
         const [width, height] = Utils.adjustExactRatio([baseWidth, baseHeight, ratio]);
+        const p = 0.05;
         let borderX = (baseWidth - width) / 2;
         let borderY = (baseHeight - height) / 2;
-        if (borderY < this.shardBorderSmallSize * 4) {
-            borderY = this.shardBorderSmallSize * 4;
+        let minBorder: number;
+        if(borderX > borderY) minBorder = baseHeight * p; 
+        else minBorder = baseWidth * p; 
+        if(minBorder < this.shardBorderSmallSize) minBorder = this.shardBorderSmallSize;
+        if (borderY < minBorder) {
+            borderY = minBorder;
             borderX = (baseWidth - ((baseHeight - borderY * 2) * ratio)) / 2;
         }
-        if (borderX < this.shardBorderSmallSize * 4) {
-            borderX = this.shardBorderSmallSize * 4;
+        if (borderX < minBorder) {
+            borderX = minBorder;
             borderY = (baseHeight - ((baseWidth - borderX * 2) / ratio)) / 2;
         }
         return {

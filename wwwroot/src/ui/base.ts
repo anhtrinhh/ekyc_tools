@@ -13,6 +13,7 @@ export interface UILoadHandler {
 
 export class UI {
     private static insertAlertTimeout: any = null;
+    private static sizeRatio = 0.05;
     private static shardBorderLargeSize = 40;
     private static shardBorderSmallSize = 5;
     private static delaySetupUIMs = 50;
@@ -324,7 +325,11 @@ export class UI {
             const parentHeight = parentEl.clientHeight;
             const parentSize = parentWidth < parentHeight ? parentWidth : parentHeight;
             const videoSize = videoClientWidth < videoClientHeight ? videoClientWidth : videoClientHeight;
-            const width = parentSize < videoSize ? parentSize - 40 : videoSize - 40;
+            let minBorder: number;
+            if (parentSize < videoSize) minBorder = parentSize * this.sizeRatio;
+            else minBorder = videoSize * this.sizeRatio;
+            if (minBorder < this.shardBorderSmallSize) minBorder = this.shardBorderSmallSize;
+            const width = parentSize < videoSize ? parentSize - minBorder : videoSize - minBorder;
             if (circleRegion) {
                 Utils.queryAllByClassName(UIElementClasses.CIRCULAR_PROGRESS_POINT_DIV).forEach((elm, i) => {
                     const pointEl = elm as HTMLElement;
@@ -374,13 +379,12 @@ export class UI {
 
     private static getShadingBorderSize(baseWidth: number, baseHeight: number, ratio: number) {
         const [width, height] = Utils.adjustExactRatio([baseWidth, baseHeight, ratio]);
-        const p = 0.05;
         let borderX = (baseWidth - width) / 2;
         let borderY = (baseHeight - height) / 2;
         let minBorder: number;
-        if(borderX > borderY) minBorder = baseHeight * p; 
-        else minBorder = baseWidth * p; 
-        if(minBorder < this.shardBorderSmallSize) minBorder = this.shardBorderSmallSize;
+        if (borderX > borderY) minBorder = baseHeight * this.sizeRatio;
+        else minBorder = baseWidth * this.sizeRatio;
+        if (minBorder < this.shardBorderSmallSize) minBorder = this.shardBorderSmallSize;
         if (borderY < minBorder) {
             borderY = minBorder;
             borderX = (baseWidth - ((baseHeight - borderY * 2) * ratio)) / 2;

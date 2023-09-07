@@ -13,7 +13,7 @@ export interface UILoadHandler {
 
 export class UI {
     private static insertAlertTimeout: any = null;
-    private static sizeRatio = 0.05;
+    private static sizeRatio = 0.06;
     private static shardBorderLargeSize = 40;
     private static shardBorderSmallSize = 5;
     private static delaySetupUIMs = 50;

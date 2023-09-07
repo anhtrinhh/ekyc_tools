@@ -173,6 +173,10 @@ export class RecordUI {
         this.recordButton.classList.remove(UIElementClasses.DNONE);
     }
 
+    public hide() {
+        this.recordButton.classList.add(UIElementClasses.DNONE);
+    }
+
     public setStream(stream: MediaStream) {
         this.mediaStream = stream;
         if (this.recorder) {

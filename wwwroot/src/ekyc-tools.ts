@@ -49,10 +49,16 @@ export class EkycTools {
             if (this.flashButton) {
                 this.flashButton.reset();
                 this.flashButton.hide();
+                this.flashButton = null;
             }
             if (this.zoomInput) {
                 this.zoomInput.removeOnCameraZoomValueChangeCallback();
                 this.zoomInput.hide();
+                this.zoomInput = null;
+            }
+            if (this.recordUI) {
+                this.recordUI.hide();
+                this.recordUI = null;
             }
         }
         return new Promise((resolve, reject) => {

@@ -104,6 +104,7 @@
             getCameraDevicesByType().then(rs => {
                 let deviceId;
                 if (rs.fronts.length > 0) deviceId = rs.fronts[0].id;
+                else if(rs.others.length > 0) deviceId = rs.others[0].id;
                 getVideoConstraint2(deviceId).then(videoConstraint => {
                     tools.open({
                         video: videoConstraint, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 6000, enableSwitchCamera: true,
@@ -114,7 +115,7 @@
                                 classList: ['ekyct-alert-custom']
                             })
                         },
-                        onError: reason => console.error(`Error: ${reason}`),
+                        onError: reason => alert(`Error: ${reason}`),
                         onStart: () => console.log('Start record'),
                         onStop: rs => {
                             console.log(rs)
@@ -177,8 +178,8 @@
 
         async function getVideoConstraint2(deviceId) {
             const videoContraint = {
-                width: 1920,
-                height: 1080,
+                width: 1280,
+                height: 720,
                 frameRate: 30,
                 deviceId
             };
@@ -205,6 +206,7 @@
             getCameraDevicesByType().then(rs => {
                 let deviceId;
                 if (rs.backs.length > 0) deviceId = rs.backs[0].id;
+                else if(rs.others.length > 0) deviceId = rs.others[0].id;
                 getVideoConstraint2(deviceId).then(videoConstraint => {
                     tools.open({
                         enableFilePicker: true, enableSwitchCamera: true, enableFlash: true, zoom: 1,
@@ -216,7 +218,7 @@
                                 classList: ['ekyct-alert-custom']
                             })
                         },
-                        onError: reason => console.error(`Error: ${reason}`),
+                        onError: reason => alert(`Error: ${reason}`),
                         onStart: () => console.log('Start capture'),
                         onStop: rs => {
                             if (rs) {

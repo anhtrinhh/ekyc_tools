@@ -64,7 +64,7 @@
                 let deviceId;
                 if (rs.fronts.length > 0) deviceId = rs.fronts[0].id;
                 tools.open({
-                    video: { width: 1440, height: 1080 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 6000, enableSwitchCamera: true,
+                    video: { width: 1280, height: 720 }, shadingRatio: 0, zoom: 1, canvasMaxWidth: 0, canvasMinWidth: 0, recordMs: 6000, enableSwitchCamera: true, enableFlash: true,
                     onOpen: () => {
                         tools.addAlert({
                             content: 'Quý khách vui lòng để khuôn mặt hoàn toàn bên trong khung hình, sau đó nhấn nút quay video và giữ thiết bị tránh rung lắc trong 3-5s.',

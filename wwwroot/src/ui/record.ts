@@ -112,6 +112,7 @@ export class RecordUI {
     private recorder: MediaRecorder | null = null;
     private recordProgress: RecordProgressUI | null = null;
     private recording: boolean = false;
+    private chunks: BlobPart[] = [];
     private readonly recordButton: HTMLButtonElement;
     private readonly config: RecorderConfig;
     private constructor(config: RecorderConfig, onStart?: OnStartCallback, onStop?: OnStopCallback, onError?: OnErrorCallback) {
@@ -135,17 +136,8 @@ export class RecordUI {
                     videoBitsPerSecond: this.config.videoBitsPerSecond
                 });
                 this.recorder.ondataavailable = async event => {
-                    try {
-                        if (this.onStop) {
-                            const blob = event.data;
-                            const posterBlob = await UI.getCapture(captureRegion);
-                            this.recording = false;
-                            this.recordButton.disabled = false;
-                            this.onStop(ResultFactory.createVideoResult(blob, posterBlob));
-                        }
-                    } catch (err) {
-                        if (this.onError) this.onError(err);
-                    }
+                    const blob = event.data;
+                    this.chunks.push(blob);
                 };
                 this.recorder.onstart = () => {
                     if (this.recordProgress) this.recordProgress.reset()
@@ -156,6 +148,22 @@ export class RecordUI {
                     this.recordProgress.start().then(() => {
                         this.recorder?.stop();
                     });
+                }
+                this.recorder.onstop = _ => {
+                    const chunks = this.chunks;
+                    let contentType = 'application/octet-stream';
+                    if (chunks.length > 0) contentType = (chunks[0] as Blob).type;
+                    this.chunks = [];
+                    this.recording = false;
+                    this.recordButton.disabled = false;
+                    if (this.onStop) {
+                        UI.getCapture(captureRegion).then(posterBlob => {
+                            const blob = new Blob(chunks, { type: contentType })
+                            this.onStop!(ResultFactory.createVideoResult(blob, posterBlob));
+                        }).catch(err => {
+                            if (this.onError) this.onError(err);
+                        })
+                    }
                 }
                 this.recorder.start();
             }
@@ -178,7 +186,7 @@ export class RecordUI {
     }
 
     public setStream(stream: MediaStream) {
-        this.mediaStream = stream;
+        this.mediaStream = new MediaStream([...stream.getTracks()]);
         if (this.recorder) {
             this.recorder.stop();
             this.recorder = null;

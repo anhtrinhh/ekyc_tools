@@ -112,7 +112,7 @@ export class EkycTools {
             if (customEvent.detail) {
                 const canvas = customEvent.detail.canvas as HTMLCanvasElement;
                 const { error } = customEvent.detail;
-                if (canvas && !isRecordConfig) CaptureButton.create(footerInner, captureRegion, config.onStart, config.onStop, config.onError);
+                if (canvas && !isRecordConfig) CaptureButton.create(footerInner, captureRegion, this.loadHandlers, config.onStart, config.onStop, config.onError);
                 if (error && config.onError) config.onError(error);
             }
         });

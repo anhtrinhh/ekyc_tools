@@ -49,10 +49,10 @@ export class ZoomUI {
         maxValue: number,
         defaultValue: number,
         step: number) {
-        this.rangeInput.min = minValue.toString();
-        this.rangeInput.max = maxValue.toString();
-        this.rangeInput.step = step.toString();
-        this.rangeInput.value = defaultValue.toString();
+        this.rangeInput.min = minValue ? minValue.toString() : '1';
+        this.rangeInput.max = maxValue ? maxValue.toString() : '5';
+        this.rangeInput.step = step ? step.toString() : '0.1';
+        this.rangeInput.value = defaultValue ? defaultValue.toString() : '1';
 
         this.onValueChange();
     }
